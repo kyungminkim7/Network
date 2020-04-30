@@ -23,9 +23,9 @@ target_include_directories(${PROJECT_NAME}
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-        asio::asio
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    asio::asio
+    flatbuffers
 )
 
 add_subdirectory(tests)
