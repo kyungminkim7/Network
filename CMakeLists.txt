@@ -10,7 +10,7 @@ add_subdirectory(extern)
 # Create targets and set properties
 add_library(${PROJECT_NAME}
     "src/Node.cpp"
-    "src/Publisher.cpp"
+    "src/TcpPublisher.cpp"
 )
 
 add_library(${package_name}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -27,6 +27,14 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PUBLIC
     asio::asio
     flatbuffers
+)
+
+target_compile_features(${PROJECT_NAME}
+    PRIVATE
+        cxx_auto_type
+        cxx_generic_lambdas
+        cxx_lambdas
+        cxx_lambda_init_captures
 )
 
 add_subdirectory(tests)
