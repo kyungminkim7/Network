@@ -10,6 +10,7 @@ add_subdirectory(extern)
 # Create targets and set properties
 add_library(${PROJECT_NAME}
     "src/Node.cpp"
+    "src/Publisher.cpp"
 )
 
 add_library(${package_name}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
