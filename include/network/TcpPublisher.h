@@ -1,7 +1,9 @@
 #pragma once
 
+#include <forward_list>
+#include <list>
 #include <memory>
-#include <vector>
+#include <mutex>
 
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
@@ -21,7 +23,14 @@ private:
 
     asio::io_context &ioContext;
     asio::ip::tcp::acceptor socketAcceptor;
-    std::vector<std::shared_ptr<asio::ip::tcp::socket>> connectedSockets;
+
+    std::list<std::shared_ptr<asio::ip::tcp::socket>> connectedSockets;
+    std::mutex socketsMutex;
+
+    // References to this TcpPublisher per connection in order to keep it alive
+    // until the last connection is broken
+    std::forward_list<std::shared_ptr<TcpPublisher>> publishers;
+    std::mutex publishersMutex;
 };
 
 } // namespace ntwk
