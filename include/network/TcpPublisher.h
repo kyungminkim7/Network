@@ -23,7 +23,7 @@ private:
     asio::io_context &ioContext;
     asio::ip::tcp::acceptor socketAcceptor;
 
-    std::list<std::shared_ptr<asio::ip::tcp::socket>> connectedSockets;
+    std::list<std::unique_ptr<asio::ip::tcp::socket>> connectedSockets;
     std::mutex socketsMutex;
 };
 
