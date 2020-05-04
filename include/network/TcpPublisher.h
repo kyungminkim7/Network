@@ -15,8 +15,8 @@ public:
 
     void publish(std::shared_ptr<uint8_t[]> msg, std::size_t msgSize_bytes);
 
-//    template<typename T>
-//    void publish(std::shared_ptr<T> msg);
+    template<typename T>
+    void publish(std::shared_ptr<T> msg);
 
 private:
     TcpPublisher(asio::io_context &ioContext, unsigned short port);
