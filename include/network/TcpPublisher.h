@@ -1,6 +1,5 @@
 #pragma once
 
-#include <forward_list>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -26,11 +25,6 @@ private:
 
     std::list<std::shared_ptr<asio::ip::tcp::socket>> connectedSockets;
     std::mutex socketsMutex;
-
-    // References to this TcpPublisher per connection in order to keep it alive
-    // until the last connection is broken
-    std::forward_list<std::shared_ptr<TcpPublisher>> publishers;
-    std::mutex publishersMutex;
 };
 
 } // namespace ntwk
