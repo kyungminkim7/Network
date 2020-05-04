@@ -1,8 +1,5 @@
 #include <network/TcpPublisher.h>
 
-#include <forward_list>
-#include <unordered_map>
-
 #include <asio/write.hpp>
 
 #include <std_msgs/Header.h>
@@ -53,20 +50,29 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
     }
 }
 
-void TcpPublisher::publish() {
-    auto msg = std::make_shared<std::string>("Hello all apsoijfpasoeif");
-    auto msgHeader = std::make_shared<std_msgs::Header>(msg->length());
+void TcpPublisher::publish(std::shared_ptr<uint8_t[]> msg, std::size_t msgSize_bytes) {
+    auto msgHeader = std::make_shared<std_msgs::Header>(msgSize_bytes);
 
     {
         std::lock_guard<std::mutex> guard(this->socketsMutex);
         for (auto &socket : this->connectedSockets) {
+            // Publish msg header
             asio::async_write(*socket, asio::buffer(msgHeader.get(), sizeof(std_msgs::Header)),
-                              [publisher=shared_from_this(), socket=socket.get(), msgHeader, msg](const auto &error, auto bytesTransferred){
-                // Remove sockets that have errored out
+                              [publisher=shared_from_this(), socket=socket.get(), msgHeader, msg, msgSize_bytes](const auto &error, auto bytesTransferred) mutable {
                 if (error) {
                     publisher->removeSocket(socket);
                     return;
                 }
+
+                // Publish msg
+                auto pMsg = msg.get();
+                asio::async_write(*socket, asio::buffer(pMsg, msgSize_bytes),
+                                  [publisher=std::move(publisher), socket, msg=std::move(msg)](const auto &error, auto bytesTransferred){
+                    if (error) {
+                        publisher->removeSocket(socket);
+                        return;
+                    }
+                });
             });
         }
     }

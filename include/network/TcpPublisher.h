@@ -13,7 +13,10 @@ class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
 public:
     static std::shared_ptr<TcpPublisher> create(asio::io_context &ioContext, unsigned short port);
 
-    void publish();
+    void publish(std::shared_ptr<uint8_t[]> msg, std::size_t msgSize_bytes);
+
+//    template<typename T>
+//    void publish(std::shared_ptr<T> msg);
 
 private:
     TcpPublisher(asio::io_context &ioContext, unsigned short port);
@@ -28,3 +31,5 @@ private:
 };
 
 } // namespace ntwk
+
+//#include "TcpPublisher_impl.h"
