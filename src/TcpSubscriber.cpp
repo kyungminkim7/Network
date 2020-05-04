@@ -2,7 +2,7 @@
 
 #include <asio/read.hpp>
 
-#include <std_msgs/Header.h>
+#include <std_msgs/Header_generated.h>
 
 #include <iostream>
 

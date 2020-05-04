@@ -1,6 +1,6 @@
 #include <asio/write.hpp>
 
-#include <std_msgs/Header.h>
+#include <std_msgs/Header_generated.h>
 
 namespace ntwk {
 
