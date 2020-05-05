@@ -1,4 +1,5 @@
 #include <asio/write.hpp>
+#include <flatbuffers/flatbuffers.h>
 
 #include <std_msgs/Header_generated.h>
 
@@ -32,5 +33,8 @@ void TcpPublisher::publish(std::shared_ptr<T> msg) {
         }
     }
 }
+
+template<>
+void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
 } // namespace ntwk

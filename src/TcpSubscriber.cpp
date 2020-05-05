@@ -4,8 +4,6 @@
 
 #include <std_msgs/Header_generated.h>
 
-#include <iostream>
-
 namespace ntwk {
 
 using namespace asio::ip;
@@ -28,7 +26,7 @@ TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
     msgReceivedHandler(std::move(msgReceivedHandler)) { }
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
-    this->socket.async_connect(endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
+    this->socket.async_connect(this->endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
         auto pSubscriber = subscriber.get();
 
         if (error) {
