@@ -11,7 +11,7 @@ namespace sensor_msgs {
 struct Image;
 struct ImageBuilder;
 
-enum class Encoding : int32_t {
+enum class ImageEncoding : int32_t {
   MONO8 = 0,
   MONO16 = 1,
   RGB8 = 2,
@@ -26,23 +26,23 @@ enum class Encoding : int32_t {
   MAX = BAYER_GRBG8
 };
 
-inline const Encoding (&EnumValuesEncoding())[10] {
-  static const Encoding values[] = {
-    Encoding::MONO8,
-    Encoding::MONO16,
-    Encoding::RGB8,
-    Encoding::BGR8,
-    Encoding::RGBA8,
-    Encoding::BGRA8,
-    Encoding::BAYER_RGGB8,
-    Encoding::BAYER_BGGR8,
-    Encoding::BAYER_GBRG8,
-    Encoding::BAYER_GRBG8
+inline const ImageEncoding (&EnumValuesImageEncoding())[10] {
+  static const ImageEncoding values[] = {
+    ImageEncoding::MONO8,
+    ImageEncoding::MONO16,
+    ImageEncoding::RGB8,
+    ImageEncoding::BGR8,
+    ImageEncoding::RGBA8,
+    ImageEncoding::BGRA8,
+    ImageEncoding::BAYER_RGGB8,
+    ImageEncoding::BAYER_BGGR8,
+    ImageEncoding::BAYER_GBRG8,
+    ImageEncoding::BAYER_GRBG8
   };
   return values;
 }
 
-inline const char * const *EnumNamesEncoding() {
+inline const char * const *EnumNamesImageEncoding() {
   static const char * const names[11] = {
     "MONO8",
     "MONO16",
@@ -59,10 +59,10 @@ inline const char * const *EnumNamesEncoding() {
   return names;
 }
 
-inline const char *EnumNameEncoding(Encoding e) {
-  if (flatbuffers::IsOutRange(e, Encoding::MONO8, Encoding::BAYER_GRBG8)) return "";
+inline const char *EnumNameImageEncoding(ImageEncoding e) {
+  if (flatbuffers::IsOutRange(e, ImageEncoding::MONO8, ImageEncoding::BAYER_GRBG8)) return "";
   const size_t index = static_cast<size_t>(e);
-  return EnumNamesEncoding()[index];
+  return EnumNamesImageEncoding()[index];
 }
 
 struct Image FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
@@ -85,10 +85,10 @@ struct Image FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool mutate_height(uint32_t _height) {
     return SetField<uint32_t>(VT_HEIGHT, _height, 0);
   }
-  sensor_msgs::Encoding encoding() const {
-    return static_cast<sensor_msgs::Encoding>(GetField<int32_t>(VT_ENCODING, 0));
+  sensor_msgs::ImageEncoding encoding() const {
+    return static_cast<sensor_msgs::ImageEncoding>(GetField<int32_t>(VT_ENCODING, 0));
   }
-  bool mutate_encoding(sensor_msgs::Encoding _encoding) {
+  bool mutate_encoding(sensor_msgs::ImageEncoding _encoding) {
     return SetField<int32_t>(VT_ENCODING, static_cast<int32_t>(_encoding), 0);
   }
   const flatbuffers::Vector<uint8_t> *data() const {
@@ -118,7 +118,7 @@ struct ImageBuilder {
   void add_height(uint32_t height) {
     fbb_.AddElement<uint32_t>(Image::VT_HEIGHT, height, 0);
   }
-  void add_encoding(sensor_msgs::Encoding encoding) {
+  void add_encoding(sensor_msgs::ImageEncoding encoding) {
     fbb_.AddElement<int32_t>(Image::VT_ENCODING, static_cast<int32_t>(encoding), 0);
   }
   void add_data(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> data) {
@@ -139,7 +139,7 @@ inline flatbuffers::Offset<Image> CreateImage(
     flatbuffers::FlatBufferBuilder &_fbb,
     uint32_t width = 0,
     uint32_t height = 0,
-    sensor_msgs::Encoding encoding = sensor_msgs::Encoding::MONO8,
+    sensor_msgs::ImageEncoding encoding = sensor_msgs::ImageEncoding::MONO8,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> data = 0) {
   ImageBuilder builder_(_fbb);
   builder_.add_data(data);
@@ -153,7 +153,7 @@ inline flatbuffers::Offset<Image> CreateImageDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     uint32_t width = 0,
     uint32_t height = 0,
-    sensor_msgs::Encoding encoding = sensor_msgs::Encoding::MONO8,
+    sensor_msgs::ImageEncoding encoding = sensor_msgs::ImageEncoding::MONO8,
     const std::vector<uint8_t> *data = nullptr) {
   auto data__ = data ? _fbb.CreateVector<uint8_t>(*data) : 0;
   return sensor_msgs::CreateImage(

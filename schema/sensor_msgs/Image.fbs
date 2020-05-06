@@ -1,6 +1,6 @@
 namespace sensor_msgs;
 
-enum Encoding:int32 {
+enum ImageEncoding:int32 {
     MONO8, MONO16,
     RGB8, BGR8,
     RGBA8, BGRA8,
@@ -13,7 +13,7 @@ enum Encoding:int32 {
 table Image {
     width:uint32;
     height:uint32;
-    encoding:Encoding;
+    encoding:ImageEncoding;
     data:[uint8];
 }
 
