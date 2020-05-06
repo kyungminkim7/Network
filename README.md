@@ -1,2 +1,2 @@
-# modern_cmake
-This project provides a template for using modern CMake to create exportable packages that can be portably installed and easily imported by external projects.
+# network
+This project provides a library for networking and communicating through a protocol buffer to allow efficient and portable data transfers.
