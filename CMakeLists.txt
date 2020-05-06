@@ -38,5 +38,3 @@ target_compile_features(${PROJECT_NAME}
         cxx_lambda_init_captures
         cxx_range_for
 )
-
-add_subdirectory(tests)
