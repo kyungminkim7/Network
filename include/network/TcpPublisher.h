@@ -13,7 +13,9 @@ namespace ntwk {
 
 class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
 public:
-    static std::shared_ptr<TcpPublisher> create(asio::io_context &ioContext, unsigned short port, unsigned int msgQueueSize);
+    static std::shared_ptr<TcpPublisher> create(asio::io_context &ioContext,
+                                                unsigned short port,
+                                                unsigned int msgQueueSize);
 
     void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 

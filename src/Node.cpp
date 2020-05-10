@@ -11,8 +11,10 @@ std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port, unsigned int 
 }
 
 std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
+                                               unsigned int msgQueueSize,
                                                std::function<void (std::unique_ptr<uint8_t[]>)> msgReceivedHandler) {
-    return TcpSubscriber::create(this->ioContext, host, port, std::move(msgReceivedHandler));
+    return TcpSubscriber::create(this->ioContext, host, port, msgQueueSize,
+                                 std::move(msgReceivedHandler));
 }
 
 void Node::update() {

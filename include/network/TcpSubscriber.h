@@ -15,11 +15,13 @@ public:
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
                                                  const std::string &host,
                                                  unsigned short port,
+                                                 unsigned int msgQueueSize,
                                                  MessageReceivedHandler msgReceivedHandler);
 
 private:
     TcpSubscriber(asio::io_context &ioContext,
                   const std::string &host, unsigned short port,
+                  unsigned int msgQueueSize,
                   MessageReceivedHandler msgReceivedHandler);
 
     void connect(std::shared_ptr<TcpSubscriber> subscriber);

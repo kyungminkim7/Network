@@ -4,15 +4,18 @@
 
 #include <std_msgs/Header_generated.h>
 
+#include <iostream>
+
 namespace ntwk {
 
 using namespace asio::ip;
 
 std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &ioContext,
                                                      const std::string &host, unsigned short port,
+                                                     unsigned int msgQueueSize,
                                                      MessageReceivedHandler msgReceivedHandler) {
     std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(ioContext,
-                                                                host, port,
+                                                                host, port, msgQueueSize,
                                                                 std::move(msgReceivedHandler)));
     subscriber->connect(subscriber);
     return subscriber;
@@ -20,6 +23,7 @@ std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &ioContext
 
 TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
                              const std::string &host, unsigned short port,
+                             unsigned int msgQueueSize,
                              MessageReceivedHandler msgReceivedHandler) :
     socket(ioContext),
     endpoint(make_address(host), port),
@@ -63,6 +67,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber, std::s
         auto pSubscriber = subscriber.get();
 
         if (error) {
+            std::cout << "Error\n";
             subscriber->socket.close();
             pSubscriber->connect(std::move(subscriber));
         } else {
