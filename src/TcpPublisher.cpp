@@ -8,15 +8,17 @@ namespace ntwk {
 
 using namespace asio::ip;
 
-std::shared_ptr<TcpPublisher> TcpPublisher::create(asio::io_context &ioContext, unsigned short port) {
-    std::shared_ptr<TcpPublisher> publisher(new TcpPublisher(ioContext, port));
+std::shared_ptr<TcpPublisher> TcpPublisher::create(asio::io_context &ioContext, unsigned short port,
+                                                   unsigned int msgQueueSize) {
+    std::shared_ptr<TcpPublisher> publisher(new TcpPublisher(ioContext, port, msgQueueSize));
     publisher->listenForConnections();
     return publisher;
 }
 
-TcpPublisher::TcpPublisher(asio::io_context &ioContext, unsigned short port) :
+TcpPublisher::TcpPublisher(asio::io_context &ioContext, unsigned short port, unsigned int msgQueueSize) :
     ioContext(ioContext),
-    socketAcceptor(ioContext, tcp::endpoint(tcp::v4(), port)) { }
+    socketAcceptor(ioContext, tcp::endpoint(tcp::v4(), port)),
+    msgQueueSize(msgQueueSize) { }
 
 void TcpPublisher::listenForConnections() {
     auto socket = std::make_unique<tcp::socket>(this->ioContext);
@@ -50,8 +52,30 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
     }
 }
 
-template<>
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+    std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+    this->msgQueue.emplace(std::move(msg));
+    if (this->msgQueue.size() > this->msgQueueSize) {
+        this->msgQueue.pop();
+    }
+}
+
+void TcpPublisher::update() {
+    // Get next msg to send from the msgQueue
+    std::shared_ptr<flatbuffers::DetachedBuffer> msg;
+
+    {
+        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+
+        if (this->msgQueue.empty()) {
+            return;
+        }
+
+        msg = this->msgQueue.front();
+        this->msgQueue.pop();
+    }
+
+    // Build and send the msg header followed by the actual msg itself
     auto msgHeader = std::make_shared<std_msgs::Header>(msg->size());
 
     {
