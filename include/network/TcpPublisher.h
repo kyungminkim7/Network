@@ -2,7 +2,6 @@
 
 #include <list>
 #include <memory>
-#include <mutex>
 #include <queue>
 
 #include <asio/ip/tcp.hpp>
@@ -41,7 +40,6 @@ private:
     asio::ip::tcp::acceptor socketAcceptor;
 
     std::list<std::unique_ptr<asio::ip::tcp::socket>> connectedSockets;
-    std::mutex socketsMutex;
 
     std::queue<std::shared_ptr<flatbuffers::DetachedBuffer>> msgQueue;
     unsigned int msgQueueSize;

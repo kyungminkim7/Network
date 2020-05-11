@@ -30,17 +30,12 @@ void TcpPublisher::listenForConnections() {
             throw asio::system_error(error);
         }
 
-        {
-            std::lock_guard<std::mutex> guard(publisher->socketsMutex);
-            publisher->connectedSockets.emplace_back(std::move(socket));
-        }
-
+        publisher->connectedSockets.emplace_back(std::move(socket));
         publisher->listenForConnections();
     });
 }
 
 void TcpPublisher::removeSocket(tcp::socket *socket) {
-    std::lock_guard<std::mutex> guard(this->socketsMutex);
     for (auto iter = this->connectedSockets.cbegin(); iter != this->connectedSockets.cend(); ) {
         if (iter->get() == socket) {
             iter = this->connectedSockets.erase(iter);
@@ -53,7 +48,7 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
     this->msgQueue.emplace(std::move(msg));
-    if (this->msgQueue.size() > this->msgQueueSize) {
+    while (this->msgQueue.size() > this->msgQueueSize) {
         this->msgQueue.pop();
     }
 }
@@ -65,17 +60,14 @@ void TcpPublisher::update() {
         return;
     }
 
-    msg = this->msgQueue.front();
+    msg = std::move(this->msgQueue.front());
     this->msgBeingSent = msg;
     this->msgQueue.pop();
 
     // Build and send the msg header followed by the actual msg itself
     auto msgHeader = std::make_shared<std_msgs::Header>(msg->size());
-    {
-        std::lock_guard<std::mutex> guard(this->socketsMutex);
-        for (auto &socket : this->connectedSockets) {
-            sendMsgHeader(shared_from_this(), socket.get(), msgHeader, msg, 0u);
-        }
+    for (auto &socket : this->connectedSockets) {
+        sendMsgHeader(shared_from_this(), socket.get(), msgHeader, msg, 0u);
     }
 }
 

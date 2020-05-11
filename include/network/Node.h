@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <list>
+#include <forward_list>
 #include <functional>
 #include <memory>
 
@@ -23,7 +23,8 @@ public:
 
 private:
     asio::io_context ioContext;
-    std::list<std::shared_ptr<TcpPublisher>> publishers;
+    std::forward_list<std::shared_ptr<TcpPublisher>> publishers;
+    std::forward_list<std::shared_ptr<TcpSubscriber>> subscribers;
 };
 
 } // namespace ntwk
