@@ -28,6 +28,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PUBLIC
     asio::asio
     flatbuffers
+    zlibstatic
 )
 
 target_compile_features(${PROJECT_NAME}
