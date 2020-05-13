@@ -3,6 +3,7 @@
 #include <list>
 #include <memory>
 #include <queue>
+#include <vector>
 
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
@@ -16,7 +17,7 @@ public:
                                                 unsigned short port,
                                                 unsigned int msgQueueSize);
 
-    void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
+    void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg, bool compressed=false);
 
     void update();
 
