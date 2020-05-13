@@ -5,8 +5,11 @@
 
 namespace ntwk {
 
-std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port, unsigned int msgQueueSize) {
-    this->publishers.emplace_front(TcpPublisher::create(this->ioContext, port, msgQueueSize));
+std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port,
+                                              unsigned int msgQueueSize,
+                                              bool compressed) {
+    this->publishers.emplace_front(TcpPublisher::create(this->ioContext, port,
+                                                        msgQueueSize, compressed));
     return this->publishers.front();
 }
 

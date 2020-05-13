@@ -15,14 +15,16 @@ class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
 public:
     static std::shared_ptr<TcpPublisher> create(asio::io_context &ioContext,
                                                 unsigned short port,
-                                                unsigned int msgQueueSize);
+                                                unsigned int msgQueueSize,
+                                                bool compressed);
 
-    void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg, bool compressed=false);
+    void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
     void update();
 
 private:
-    TcpPublisher(asio::io_context &ioContext, unsigned short port, unsigned int msgQueueSize);
+    TcpPublisher(asio::io_context &ioContext, unsigned short port,
+                 unsigned int msgQueueSize, bool compressed);
     void listenForConnections();
     void removeSocket(asio::ip::tcp::socket *socket);
 
@@ -45,6 +47,8 @@ private:
     std::queue<std::shared_ptr<flatbuffers::DetachedBuffer>> msgQueue;
     unsigned int msgQueueSize;
     std::weak_ptr<flatbuffers::DetachedBuffer> msgBeingSent;
+
+    bool compressed;
 };
 
 } // namespace ntwk

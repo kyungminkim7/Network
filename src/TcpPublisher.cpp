@@ -40,7 +40,7 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuf
 
     msg = nullptr;
 
-    // Convert compressedMsg
+    // Build compressedMsg
     flatbuffers::FlatBufferBuilder msgBuilder;
     auto compressedMsgData = msgBuilder.CreateVector(compressedBytes.get(), numCompressedBytes);
     auto compressedMsg = std_msgs::CreateCompressed(msgBuilder, compressedMsgData);
@@ -56,17 +56,17 @@ namespace ntwk {
 using namespace asio::ip;
 
 std::shared_ptr<TcpPublisher> TcpPublisher::create(asio::io_context &ioContext, unsigned short port,
-                                                   unsigned int msgQueueSize) {
-    std::shared_ptr<TcpPublisher> publisher(new TcpPublisher(ioContext, port, msgQueueSize));
+                                                   unsigned int msgQueueSize, bool compressed) {
+    std::shared_ptr<TcpPublisher> publisher(new TcpPublisher(ioContext, port, msgQueueSize, compressed));
     publisher->listenForConnections();
     return publisher;
 }
 
 TcpPublisher::TcpPublisher(asio::io_context &ioContext, unsigned short port,
-                           unsigned int msgQueueSize) :
+                           unsigned int msgQueueSize, bool compressed) :
     ioContext(ioContext),
     socketAcceptor(ioContext, tcp::endpoint(tcp::v4(), port)),
-    msgQueueSize(msgQueueSize) { }
+    msgQueueSize(msgQueueSize), compressed(compressed){ }
 
 void TcpPublisher::listenForConnections() {
     auto socket = std::make_unique<tcp::socket>(this->ioContext);
@@ -95,8 +95,8 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
     }
 }
 
-void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg, bool compressed) {
-    this->msgQueue.emplace(compressed ? compressMsg(std::move(msg)) : std::move(msg));
+void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+    this->msgQueue.emplace(this->compressed ? compressMsg(std::move(msg)) : std::move(msg));
     while (this->msgQueue.size() > this->msgQueueSize) {
         this->msgQueue.pop();
     }

@@ -14,7 +14,9 @@ class TcpSubscriber;
 
 class Node {
 public:
-    std::shared_ptr<TcpPublisher> advertise(unsigned short port, unsigned int msgQueueSize);
+    std::shared_ptr<TcpPublisher> advertise(unsigned short port,
+                                            unsigned int msgQueueSize=1,
+                                            bool compressed=false);
     std::shared_ptr<TcpSubscriber> subscribe(const std::string &host, unsigned short port,
                                              unsigned int msgQueueSize,
                                              std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler);
