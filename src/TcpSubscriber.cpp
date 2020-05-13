@@ -8,23 +8,22 @@ using namespace asio::ip;
 
 std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &ioContext,
                                                      const std::string &host, unsigned short port,
-                                                     unsigned int msgQueueSize,
-                                                     MessageReceivedHandler msgReceivedHandler) {
-    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(ioContext,
-                                                                host, port, msgQueueSize,
-                                                                std::move(msgReceivedHandler)));
+                                                     MessageReceivedHandler msgReceivedHandler,
+                                                     unsigned int msgQueueSize, bool compressed) {
+    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(ioContext, host, port,
+                                                                std::move(msgReceivedHandler),
+                                                                msgQueueSize, compressed));
     connect(subscriber);
     return subscriber;
 }
 
 TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
                              const std::string &host, unsigned short port,
-                             unsigned int msgQueueSize,
-                             MessageReceivedHandler msgReceivedHandler) :
-    socket(ioContext),
-    endpoint(make_address(host), port),
-    msgQueueSize(msgQueueSize),
-    msgReceivedHandler(std::move(msgReceivedHandler)) { }
+                             MessageReceivedHandler msgReceivedHandler,
+                             unsigned int msgQueueSize, bool compressed) :
+    socket(ioContext), endpoint(make_address(host), port),
+    msgReceivedHandler(std::move(msgReceivedHandler)),
+    msgQueueSize(msgQueueSize), compressed(compressed) {}
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();

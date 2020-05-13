@@ -16,18 +16,17 @@ public:
     using MessageReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
 
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
-                                                 const std::string &host,
-                                                 unsigned short port,
-                                                 unsigned int msgQueueSize,
-                                                 MessageReceivedHandler msgReceivedHandler);
+                                                 const std::string &host, unsigned short port,
+                                                 MessageReceivedHandler msgReceivedHandler,
+                                                 unsigned int msgQueueSize, bool compressed);
 
     void update();
 
 private:
     TcpSubscriber(asio::io_context &ioContext,
                   const std::string &host, unsigned short port,
-                  unsigned int msgQueueSize,
-                  MessageReceivedHandler msgReceivedHandler);
+                  MessageReceivedHandler msgReceivedHandler,
+                  unsigned int msgQueueSize, bool compressed);
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -41,10 +40,12 @@ private:
     asio::ip::tcp::socket socket;
     asio::ip::tcp::endpoint endpoint;
 
+    MessageReceivedHandler msgReceivedHandler;
+
     std::queue<std::unique_ptr<uint8_t[]>> msgQueue;
     unsigned int msgQueueSize;
 
-    MessageReceivedHandler msgReceivedHandler;
+    bool compressed;
 };
 
 } // namespace ntwk

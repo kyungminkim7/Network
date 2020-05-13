@@ -14,10 +14,11 @@ std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port,
 }
 
 std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
-                                               unsigned int msgQueueSize,
-                                               std::function<void (std::unique_ptr<uint8_t[]>)> msgReceivedHandler) {
-    this->subscribers.emplace_front(TcpSubscriber::create(this->ioContext, host, port, msgQueueSize,
-                                                          std::move(msgReceivedHandler)));
+                                               std::function<void (std::unique_ptr<uint8_t[]>)> msgReceivedHandler,
+                                               unsigned int msgQueueSize, bool compressed) {
+    this->subscribers.emplace_front(TcpSubscriber::create(this->ioContext, host, port,
+                                                          std::move(msgReceivedHandler),
+                                                          msgQueueSize, compressed));
     return this->subscribers.front();
 }
 
