@@ -14,13 +14,18 @@ struct CompressedBuilder;
 struct Compressed FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef CompressedBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_COMPRESSEDDATA = 4
+    VT_UNCOMPRESSEDDATASIZE = 4,
+    VT_COMPRESSEDDATA = 6
   };
+  uint32_t uncompressedDataSize() const {
+    return GetField<uint32_t>(VT_UNCOMPRESSEDDATASIZE, 0);
+  }
   const flatbuffers::Vector<uint8_t> *compressedData() const {
     return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_COMPRESSEDDATA);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_UNCOMPRESSEDDATASIZE) &&
            VerifyOffset(verifier, VT_COMPRESSEDDATA) &&
            verifier.VerifyVector(compressedData()) &&
            verifier.EndTable();
@@ -31,6 +36,9 @@ struct CompressedBuilder {
   typedef Compressed Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
+  void add_uncompressedDataSize(uint32_t uncompressedDataSize) {
+    fbb_.AddElement<uint32_t>(Compressed::VT_UNCOMPRESSEDDATASIZE, uncompressedDataSize, 0);
+  }
   void add_compressedData(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> compressedData) {
     fbb_.AddOffset(Compressed::VT_COMPRESSEDDATA, compressedData);
   }
@@ -47,18 +55,22 @@ struct CompressedBuilder {
 
 inline flatbuffers::Offset<Compressed> CreateCompressed(
     flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t uncompressedDataSize = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> compressedData = 0) {
   CompressedBuilder builder_(_fbb);
   builder_.add_compressedData(compressedData);
+  builder_.add_uncompressedDataSize(uncompressedDataSize);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<Compressed> CreateCompressedDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t uncompressedDataSize = 0,
     const std::vector<uint8_t> *compressedData = nullptr) {
   auto compressedData__ = compressedData ? _fbb.CreateVector<uint8_t>(*compressedData) : 0;
   return std_msgs::CreateCompressed(
       _fbb,
+      uncompressedDataSize,
       compressedData__);
 }
 

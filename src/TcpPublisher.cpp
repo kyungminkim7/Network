@@ -38,12 +38,15 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuf
         return nullptr;
     }
 
+    const auto uncompressedMsgSize = msg->size();
     msg = nullptr;
 
     // Build compressedMsg
     flatbuffers::FlatBufferBuilder msgBuilder;
     auto compressedMsgData = msgBuilder.CreateVector(compressedBytes.get(), numCompressedBytes);
-    auto compressedMsg = std_msgs::CreateCompressed(msgBuilder, compressedMsgData);
+    auto compressedMsg = std_msgs::CreateCompressed(msgBuilder,
+                                                    uncompressedMsgSize,
+                                                    compressedMsgData);
     msgBuilder.Finish(compressedMsg);
 
     return std::make_shared<flatbuffers::DetachedBuffer>(msgBuilder.Release());
