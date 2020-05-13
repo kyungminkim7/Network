@@ -1,6 +1,39 @@
 #include <network/TcpSubscriber.h>
 
 #include <asio/read.hpp>
+#include <std_msgs/Compressed_generated.h>
+#include <zlib/zlib.h>
+
+#include <iostream>
+
+namespace {
+
+std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> compressedMsgBuffer) {
+    // Initialize decompression
+    auto compressedMsg = std_msgs::GetMutableCompressed(compressedMsgBuffer.get());
+
+    z_stream zStream;
+    zStream.zalloc = Z_NULL;
+    zStream.zfree = Z_NULL;
+    zStream.opaque = Z_NULL;
+    zStream.avail_in = compressedMsg->compressedData()->size();
+    zStream.next_in = compressedMsg->mutable_compressedData()->data();
+
+    if (inflateInit(&zStream) != Z_OK) {
+        return nullptr;
+    }
+
+    // Decompress msg
+    auto msg = std::make_unique<uint8_t[]>(compressedMsg->uncompressedDataSize());
+    zStream.avail_out = compressedMsg->uncompressedDataSize();
+    zStream.next_out = msg.get();
+
+    auto result = inflate(&zStream, Z_FINISH);
+    inflateEnd(&zStream);
+    return result == Z_STREAM_END ? std::move(msg) : nullptr;
+}
+
+} // namespace
 
 namespace ntwk {
 
@@ -51,7 +84,7 @@ void TcpSubscriber::update() {
     auto msg = std::move(this->msgQueue.front());
     this->msgQueue.pop();
 
-    this->msgReceivedHandler(std::move(msg));
+    this->msgReceivedHandler(this->compressed ? decompressMsg(std::move(msg)) : std::move(msg));
 }
 
 void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
@@ -75,6 +108,8 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
             receiveMsgHeader(std::move(subscriber), std::move(msgHeader), totalMsgHeaderBytesReceived);
             return;
         }
+
+        std::cout << "Receiving msg size: " << msgHeader->msgSize() << "\n";
 
         // Start receiving the msg
         receiveMsg(std::move(subscriber), std::make_unique<uint8_t[]>(msgHeader->msgSize()),

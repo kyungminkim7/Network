@@ -12,8 +12,8 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuf
     zStream.zalloc = Z_NULL;
     zStream.zfree = Z_NULL;
     zStream.opaque = Z_NULL;
-    auto result = deflateInit(&zStream, Z_DEFAULT_COMPRESSION);
-    if (result != Z_OK) {
+
+    if (deflateInit(&zStream, Z_DEFAULT_COMPRESSION) != Z_OK) {
         return nullptr;
     }
 

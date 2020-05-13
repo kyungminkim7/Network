@@ -20,8 +20,14 @@ struct Compressed FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   uint32_t uncompressedDataSize() const {
     return GetField<uint32_t>(VT_UNCOMPRESSEDDATASIZE, 0);
   }
+  bool mutate_uncompressedDataSize(uint32_t _uncompressedDataSize) {
+    return SetField<uint32_t>(VT_UNCOMPRESSEDDATASIZE, _uncompressedDataSize, 0);
+  }
   const flatbuffers::Vector<uint8_t> *compressedData() const {
     return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_COMPRESSEDDATA);
+  }
+  flatbuffers::Vector<uint8_t> *mutable_compressedData() {
+    return GetPointer<flatbuffers::Vector<uint8_t> *>(VT_COMPRESSEDDATA);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -80,6 +86,10 @@ inline const std_msgs::Compressed *GetCompressed(const void *buf) {
 
 inline const std_msgs::Compressed *GetSizePrefixedCompressed(const void *buf) {
   return flatbuffers::GetSizePrefixedRoot<std_msgs::Compressed>(buf);
+}
+
+inline Compressed *GetMutableCompressed(void *buf) {
+  return flatbuffers::GetMutableRoot<Compressed>(buf);
 }
 
 inline bool VerifyCompressedBuffer(
