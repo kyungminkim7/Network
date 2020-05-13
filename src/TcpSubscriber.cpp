@@ -88,6 +88,7 @@ void TcpSubscriber::update() {
         if (msg == nullptr) {
             this->socket.close();
             connect(shared_from_this());
+            return;
         }
     }
 
