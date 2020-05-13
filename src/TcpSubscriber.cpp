@@ -4,8 +4,6 @@
 #include <std_msgs/Compressed_generated.h>
 #include <zlib/zlib.h>
 
-#include <iostream>
-
 namespace {
 
 std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> compressedMsgBuffer) {
@@ -84,7 +82,16 @@ void TcpSubscriber::update() {
     auto msg = std::move(this->msgQueue.front());
     this->msgQueue.pop();
 
-    this->msgReceivedHandler(this->compressed ? decompressMsg(std::move(msg)) : std::move(msg));
+    if (this->compressed) {
+        msg = decompressMsg(std::move(msg));
+
+        if (msg == nullptr) {
+            this->socket.close();
+            connect(shared_from_this());
+        }
+    }
+
+    this->msgReceivedHandler(std::move(msg));
 }
 
 void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
@@ -98,6 +105,7 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
                      totalMsgHeaderBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
+            subscriber->socket.close();
             connect(std::move(subscriber));
             return;
         }
@@ -108,8 +116,6 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
             receiveMsgHeader(std::move(subscriber), std::move(msgHeader), totalMsgHeaderBytesReceived);
             return;
         }
-
-        std::cout << "Receiving msg size: " << msgHeader->msgSize() << "\n";
 
         // Start receiving the msg
         receiveMsg(std::move(subscriber), std::make_unique<uint8_t[]>(msgHeader->msgSize()),
@@ -128,6 +134,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
                      msgSize_bytes, totalMsgBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
+            subscriber->socket.close();
             connect(std::move(subscriber));
             return;
         }

@@ -99,10 +99,19 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
 }
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
-    this->msgQueue.emplace(this->compressed ? compressMsg(std::move(msg)) : std::move(msg));
-    while (this->msgQueue.size() > this->msgQueueSize) {
+    while (this->msgQueue.size() >= this->msgQueueSize) {
         this->msgQueue.pop();
     }
+
+    if (this->compressed) {
+        msg = compressMsg(std::move(msg));
+
+        if (msg == nullptr) {
+            return;
+        }
+    }
+
+    this->msgQueue.emplace(std::move(msg));
 }
 
 void TcpPublisher::update() {
