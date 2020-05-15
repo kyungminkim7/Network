@@ -82,12 +82,17 @@ void TcpPublisher::listenForConnections() {
             throw asio::system_error(error);
         }
 
-        publisher->connectedSockets.emplace_back(std::move(socket));
+        {
+            std::lock_guard<std::mutex> guard(publisher->socketsMutex);
+            publisher->connectedSockets.emplace_back(std::move(socket));
+        }
+
         publisher->listenForConnections();
     });
 }
 
 void TcpPublisher::removeSocket(tcp::socket *socket) {
+    std::lock_guard<std::mutex> guard(this->socketsMutex);
     for (auto iter = this->connectedSockets.cbegin(); iter != this->connectedSockets.cend(); ) {
         if (iter->get() == socket) {
             iter = this->connectedSockets.erase(iter);
@@ -99,34 +104,67 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
 }
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
-    while (this->msgQueue.size() >= this->msgQueueSize) {
-        this->msgQueue.pop();
-    }
-
     if (this->compressed) {
-        msg = compressMsg(std::move(msg));
+        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
-        if (msg == nullptr) {
-            return;
+        this->compressedMsgQueue.emplace(std::async(
+             [msg=std::move(msg)]() mutable {return compressMsg(std::move(msg));}));
+
+        while (this->compressedMsgQueue.size() > this->msgQueueSize) {
+            this->compressedMsgQueue.pop();
+        }
+    } else {
+        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+
+        this->msgQueue.emplace(std::move(msg));
+
+        while (this->msgQueue.size() > this->msgQueueSize) {
+            this->msgQueue.pop();
         }
     }
-
-    this->msgQueue.emplace(std::move(msg));
 }
 
 void TcpPublisher::update() {
     // Get next msg to send from the msgQueue
     auto msg = this->msgBeingSent.lock();
-    if (msg || this->msgQueue.empty()) {
+    if (msg) {
+        // Currently still processing the msg
         return;
     }
 
-    msg = std::move(this->msgQueue.front());
+    if (this->compressed) {
+        {
+            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+
+            if (this->compressedMsgQueue.empty()) {
+                return;
+            }
+
+            msg = this->compressedMsgQueue.front().get();
+            this->compressedMsgQueue.pop();
+        }
+
+        if (msg == nullptr) {
+            return;
+        }
+
+    } else {
+        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+
+        if (this->msgQueue.empty()) {
+            return;
+        }
+
+        msg = std::move(this->msgQueue.front());
+        this->msgQueue.pop();
+    }
+
     this->msgBeingSent = msg;
-    this->msgQueue.pop();
 
     // Build and send the msg header followed by the actual msg itself
     auto msgHeader = std::make_shared<std_msgs::Header>(msg->size());
+
+    std::lock_guard<std::mutex> guard(this->socketsMutex);
     for (auto &socket : this->connectedSockets) {
         sendMsgHeader(shared_from_this(), socket.get(), msgHeader, msg, 0u);
     }

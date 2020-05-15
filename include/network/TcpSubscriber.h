@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <queue>
 
 #include <asio/ip/tcp.hpp>
@@ -38,11 +39,14 @@ private:
                            unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived);
 
     asio::ip::tcp::socket socket;
+    std::mutex socketMutex;
+
     asio::ip::tcp::endpoint endpoint;
 
     MessageReceivedHandler msgReceivedHandler;
 
     std::queue<std::unique_ptr<uint8_t[]>> msgQueue;
+    std::mutex msgQueueMutex;
     unsigned int msgQueueSize;
 
     bool compressed;

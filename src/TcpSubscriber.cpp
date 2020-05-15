@@ -58,8 +58,11 @@ TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
+
+    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     pSubscriber->socket.async_connect(pSubscriber->endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
         if (error) {
+            std::lock_guard<std::mutex> guard(subscriber->socketMutex);
             subscriber->socket.close();
         } else {
             // Start receiving messages
@@ -70,23 +73,34 @@ void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
 
 void TcpSubscriber::update() {
     // Attempt to connect to a socket
-    if (!this->socket.is_open()) {
-        connect(shared_from_this());
+    {
+        std::lock_guard<std::mutex> guard(this->socketMutex);
+        if (!this->socket.is_open()) {
+            connect(shared_from_this());
+        }
     }
+
+    std::unique_ptr<uint8_t[]> msg;
 
     // Process msgs in queue
-    if (this->msgQueue.empty()) {
-        return;
-    }
+    {
+        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+        if (this->msgQueue.empty()) {
+            return;
+        }
 
-    auto msg = std::move(this->msgQueue.front());
-    this->msgQueue.pop();
+        msg = std::move(this->msgQueue.front());
+        this->msgQueue.pop();
+    }
 
     if (this->compressed) {
         msg = decompressMsg(std::move(msg));
 
         if (msg == nullptr) {
-            this->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(this->socketMutex);
+                this->socket.close();
+            }
             connect(shared_from_this());
             return;
         }
@@ -100,13 +114,18 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
                                      unsigned int totalMsgHeaderBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsgHeader = reinterpret_cast<uint8_t*>(msgHeader.get());
+
+    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     asio::async_read(pSubscriber->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesReceived,
                                                 sizeof(std_msgs::Header) - totalMsgHeaderBytesReceived),
                      [subscriber=std::move(subscriber), msgHeader=std::move(msgHeader),
                      totalMsgHeaderBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
-            subscriber->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
+            }
             connect(std::move(subscriber));
             return;
         }
@@ -129,13 +148,18 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
                                unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsg = msg.get();
+
+    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     asio::async_read(pSubscriber->socket, asio::buffer(pMsg + totalMsgBytesReceived,
                                                        msgSize_bytes - totalMsgBytesReceived),
                      [subscriber=std::move(subscriber), msg=std::move(msg),
                      msgSize_bytes, totalMsgBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
-            subscriber->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
+            }
             connect(std::move(subscriber));
             return;
         }
@@ -148,9 +172,12 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
         }
 
         // Queue the completed msg for handling
-        subscriber->msgQueue.emplace(std::move(msg));
-        while(subscriber->msgQueue.size() > subscriber->msgQueueSize) {
-            subscriber->msgQueue.pop();
+        {
+            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
+            subscriber->msgQueue.emplace(std::move(msg));
+            while(subscriber->msgQueue.size() > subscriber->msgQueueSize) {
+                subscriber->msgQueue.pop();
+            }
         }
 
         // Start listening for new msgs

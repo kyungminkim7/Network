@@ -1,7 +1,9 @@
 #pragma once
 
+#include <future>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <vector>
 
@@ -43,9 +45,12 @@ private:
     asio::ip::tcp::acceptor socketAcceptor;
 
     std::list<std::unique_ptr<asio::ip::tcp::socket>> connectedSockets;
+    std::mutex socketsMutex;
 
     std::queue<std::shared_ptr<flatbuffers::DetachedBuffer>> msgQueue;
+    std::queue<std::future<std::shared_ptr<flatbuffers::DetachedBuffer>>> compressedMsgQueue;
     unsigned int msgQueueSize;
+    std::mutex msgQueueMutex;
     std::weak_ptr<flatbuffers::DetachedBuffer> msgBeingSent;
 
     bool compressed;
