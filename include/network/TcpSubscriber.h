@@ -39,7 +39,8 @@ private:
                            std::unique_ptr<uint8_t[]> msg,
                            unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived);
 
-    asio::ip::tcp::socket socket;
+    asio::io_context &ioContext;
+    std::unique_ptr<asio::ip::tcp::socket> socket;
     std::mutex socketMutex;
 
     asio::ip::tcp::endpoint endpoint;

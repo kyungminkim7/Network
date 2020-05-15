@@ -13,7 +13,10 @@ std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &ioContext
     std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(ioContext, host, port,
                                                                 std::move(msgReceivedHandler),
                                                                 msgQueueSize, compression));
-    connect(subscriber);
+    {
+        std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+        connect(subscriber);
+    }
     return subscriber;
 }
 
@@ -21,18 +24,18 @@ TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
                              const std::string &host, unsigned short port,
                              MessageReceivedHandler msgReceivedHandler,
                              unsigned int msgQueueSize, Compression compression) :
-    socket(ioContext), endpoint(make_address(host), port),
+    ioContext(ioContext), socket(std::make_unique<asio::ip::tcp::socket>(ioContext)),
+    endpoint(make_address(host), port),
     msgReceivedHandler(std::move(msgReceivedHandler)),
     msgQueueSize(msgQueueSize), compression(compression) {}
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
 
-    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-    pSubscriber->socket.async_connect(pSubscriber->endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
+    pSubscriber->socket->async_connect(pSubscriber->endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
         if (error) {
             std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-            subscriber->socket.close();
+            subscriber->socket = nullptr;
         } else {
             // Start receiving messages
             receiveMsgHeader(std::move(subscriber), std::make_unique<std_msgs::Header>(), 0u);
@@ -44,7 +47,8 @@ void TcpSubscriber::update() {
     // Attempt to connect to a socket
     {
         std::lock_guard<std::mutex> guard(this->socketMutex);
-        if (!this->socket.is_open()) {
+        if (this->socket == nullptr) {
+            this->socket = std::make_unique<asio::ip::tcp::socket>(this->ioContext);
             connect(shared_from_this());
         }
     }
@@ -68,9 +72,8 @@ void TcpSubscriber::update() {
         if (msg == nullptr) {
             {
                 std::lock_guard<std::mutex> guard(this->socketMutex);
-                this->socket.close();
+                this->socket = nullptr;
             }
-            connect(shared_from_this());
             return;
         }
     }
@@ -85,17 +88,16 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
     auto pMsgHeader = reinterpret_cast<uint8_t*>(msgHeader.get());
 
     std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-    asio::async_read(pSubscriber->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesReceived,
-                                                sizeof(std_msgs::Header) - totalMsgHeaderBytesReceived),
+    asio::async_read(*pSubscriber->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesReceived,
+                                                        sizeof(std_msgs::Header) - totalMsgHeaderBytesReceived),
                      [subscriber=std::move(subscriber), msgHeader=std::move(msgHeader),
                      totalMsgHeaderBytesReceived](const auto &error, auto bytesReceived) mutable {
-        // Try reconnecting upon fatal error
+        // Close down socket and try reconnecting on the next update cylce upon fatal error
         if (error) {
             {
                 std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                subscriber->socket.close();
+                subscriber->socket = nullptr;
             }
-            connect(std::move(subscriber));
             return;
         }
 
@@ -119,17 +121,16 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
     auto pMsg = msg.get();
 
     std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-    asio::async_read(pSubscriber->socket, asio::buffer(pMsg + totalMsgBytesReceived,
-                                                       msgSize_bytes - totalMsgBytesReceived),
+    asio::async_read(*pSubscriber->socket, asio::buffer(pMsg + totalMsgBytesReceived,
+                                                        msgSize_bytes - totalMsgBytesReceived),
                      [subscriber=std::move(subscriber), msg=std::move(msg),
                      msgSize_bytes, totalMsgBytesReceived](const auto &error, auto bytesReceived) mutable {
-        // Try reconnecting upon fatal error
+        // Close down socket and try reconnecting on the next update cylce upon fatal error
         if (error) {
             {
                 std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                subscriber->socket.close();
+                subscriber->socket = nullptr;
             }
-            connect(std::move(subscriber));
             return;
         }
 
