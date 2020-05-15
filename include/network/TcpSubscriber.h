@@ -7,8 +7,9 @@
 #include <queue>
 
 #include <asio/ip/tcp.hpp>
-
 #include <std_msgs/Header_generated.h>
+
+#include "Compression.h"
 
 namespace ntwk {
 
@@ -19,7 +20,7 @@ public:
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
                                                  const std::string &host, unsigned short port,
                                                  MessageReceivedHandler msgReceivedHandler,
-                                                 unsigned int msgQueueSize, bool compressed);
+                                                 unsigned int msgQueueSize, Compression compression);
 
     void update();
 
@@ -27,7 +28,7 @@ private:
     TcpSubscriber(asio::io_context &ioContext,
                   const std::string &host, unsigned short port,
                   MessageReceivedHandler msgReceivedHandler,
-                  unsigned int msgQueueSize, bool compressed);
+                  unsigned int msgQueueSize, Compression compression);
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -49,7 +50,7 @@ private:
     std::mutex msgQueueMutex;
     unsigned int msgQueueSize;
 
-    bool compressed;
+    Compression compression;
 };
 
 } // namespace ntwk

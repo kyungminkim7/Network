@@ -11,6 +11,8 @@
 #include <asio/io_context.hpp>
 #include <std_msgs/Header_generated.h>
 
+#include "Compression.h"
+
 namespace ntwk {
 
 class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
@@ -18,7 +20,7 @@ public:
     static std::shared_ptr<TcpPublisher> create(asio::io_context &ioContext,
                                                 unsigned short port,
                                                 unsigned int msgQueueSize,
-                                                bool compressed);
+                                                Compression compression);
 
     void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
@@ -26,7 +28,7 @@ public:
 
 private:
     TcpPublisher(asio::io_context &ioContext, unsigned short port,
-                 unsigned int msgQueueSize, bool compressed);
+                 unsigned int msgQueueSize, Compression compression);
     void listenForConnections();
     void removeSocket(asio::ip::tcp::socket *socket);
 
@@ -53,7 +55,7 @@ private:
     std::mutex msgQueueMutex;
     std::weak_ptr<flatbuffers::DetachedBuffer> msgBeingSent;
 
-    bool compressed;
+    Compression compression;
 };
 
 } // namespace ntwk
