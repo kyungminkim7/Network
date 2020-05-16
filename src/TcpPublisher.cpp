@@ -2,6 +2,8 @@
 
 #include <asio/write.hpp>
 
+#include <sensor_msgs/Image_generated.h>
+
 namespace ntwk {
 
 using namespace asio::ip;
@@ -54,23 +56,43 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
 }
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
-    if (this->compression == Compression::ZLIB) {
-        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+    switch (this->compression) {
+    case Compression::ZLIB: {
+            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
-        this->compressedMsgQueue.emplace(std::async(
-             [msg=std::move(msg)]() mutable {return zlib::compressMsg(std::move(msg));}));
+            this->compressedMsgQueue.emplace(std::async(
+                 [msg=std::move(msg)]() mutable {return zlib::compressMsg(std::move(msg));}));
 
-        while (this->compressedMsgQueue.size() > this->msgQueueSize) {
-            this->compressedMsgQueue.pop();
+            while (this->compressedMsgQueue.size() > this->msgQueueSize) {
+                this->compressedMsgQueue.pop();
+            }
         }
-    } else {
-        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+        break;
 
-        this->msgQueue.emplace(std::move(msg));
+    default: { // Uncompressed
+            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
-        while (this->msgQueue.size() > this->msgQueueSize) {
-            this->msgQueue.pop();
+            this->msgQueue.emplace(std::move(msg));
+
+            while (this->msgQueue.size() > this->msgQueueSize) {
+                this->msgQueue.pop();
+            }
         }
+        break;
+    }
+}
+
+void TcpPublisher::publishImage(unsigned int width, unsigned int height,
+                                uint8_t channels, const uint8_t data[]) {
+    switch (this->compression) {
+    default: {
+        flatbuffers::FlatBufferBuilder imgMsgBuilder;
+        auto imgMsgData = imgMsgBuilder.CreateVector(data, width * height * channels);
+        auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
+        imgMsgBuilder.Finish(imgMsg);
+        this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
+        break;
+    }
     }
 }
 
@@ -82,7 +104,8 @@ void TcpPublisher::update() {
         return;
     }
 
-    if (this->compression == Compression::ZLIB) {
+    switch (this->compression) {
+    case Compression::ZLIB:
         {
             std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
@@ -97,16 +120,19 @@ void TcpPublisher::update() {
         if (msg == nullptr) {
             return;
         }
+        break;
 
-    } else {
-        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+    default: {
+            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
-        if (this->msgQueue.empty()) {
-            return;
+            if (this->msgQueue.empty()) {
+                return;
+            }
+
+            msg = std::move(this->msgQueue.front());
+            this->msgQueue.pop();
         }
-
-        msg = std::move(this->msgQueue.front());
-        this->msgQueue.pop();
+        break;
     }
 
     this->msgBeingSent = msg;
