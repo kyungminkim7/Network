@@ -61,7 +61,7 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
             std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
             this->compressedMsgQueue.emplace(std::async(
-                 [msg=std::move(msg)]() mutable {return zlib::compressMsg(std::move(msg));}));
+                 [msg=std::move(msg)]{return zlib::compressMsg(msg.get());}));
 
             while (this->compressedMsgQueue.size() > this->msgQueueSize) {
                 this->compressedMsgQueue.pop();

@@ -9,7 +9,7 @@ namespace ntwk {
 
 namespace zlib {
 
-std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(flatbuffers::DetachedBuffer *msg) {
     // Initialize compression
     z_stream zStream;
     zStream.zalloc = Z_NULL;
@@ -41,23 +41,18 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuf
         return nullptr;
     }
 
-    const auto uncompressedMsgSize = msg->size();
-    msg = nullptr;
-
     // Build compressedMsg
     flatbuffers::FlatBufferBuilder msgBuilder(numCompressedBytes + 100);
     auto compressedMsgData = msgBuilder.CreateVector(compressedBytes.get(), numCompressedBytes);
-    auto compressedMsg = std_msgs::CreateCompressed(msgBuilder,
-                                                    uncompressedMsgSize,
-                                                    compressedMsgData);
+    auto compressedMsg = std_msgs::CreateCompressed(msgBuilder, msg->size(), compressedMsgData);
     msgBuilder.Finish(compressedMsg);
 
     return std::make_shared<flatbuffers::DetachedBuffer>(msgBuilder.Release());
 }
 
-std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> compressedMsgBuffer) {
+std::unique_ptr<uint8_t[]> decompressMsg(uint8_t compressedMsgBuffer[]) {
     // Initialize decompression
-    auto compressedMsg = std_msgs::GetMutableCompressed(compressedMsgBuffer.get());
+    auto compressedMsg = std_msgs::GetMutableCompressed(compressedMsgBuffer);
 
     z_stream zStream;
     zStream.zalloc = Z_NULL;

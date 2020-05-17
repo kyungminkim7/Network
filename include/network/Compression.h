@@ -11,8 +11,8 @@ enum class Compression {NONE, ZLIB, JPEG};
 
 namespace zlib {
 
-std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
-std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> compressedMsgBuffer);
+std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(flatbuffers::DetachedBuffer *msg);
+std::unique_ptr<uint8_t[]> decompressMsg(uint8_t compressedMsgBuffer[]);
 
 } // namespace zlib
 

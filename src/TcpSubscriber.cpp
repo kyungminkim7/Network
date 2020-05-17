@@ -65,7 +65,7 @@ void TcpSubscriber::update() {
     }
 
     if (this->compression == Compression::ZLIB) {
-        msg = zlib::decompressMsg(std::move(msg));
+        msg = zlib::decompressMsg(msg.get());
 
         if (msg == nullptr) {
             {
