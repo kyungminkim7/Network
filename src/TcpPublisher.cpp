@@ -96,6 +96,10 @@ void TcpPublisher::update() {
         msg = zlib::encodeMsg(msg.get());
         break;
 
+    case Compression::JPEG:
+        msg = jpeg::encodeMsg(msg.get());
+        break;
+
     default:
         break;
     }
@@ -113,11 +117,11 @@ void TcpPublisher::update() {
 
 void TcpPublisher::sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher,
                                  asio::ip::tcp::socket *socket,
-                                 std::shared_ptr<std_msgs::Header> msgHeader,
-                                 std::shared_ptr<flatbuffers::DetachedBuffer> msg,
+                                 std::shared_ptr<const std_msgs::Header> msgHeader,
+                                 std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
                                  unsigned int totalMsgHeaderBytesTransferred) {
     // Publish msg header
-    auto pMsgHeader = reinterpret_cast<uint8_t*>(msgHeader.get());
+    auto pMsgHeader = reinterpret_cast<const uint8_t*>(msgHeader.get());
     asio::async_write(*socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesTransferred,
                                             sizeof(std_msgs::Header) - totalMsgHeaderBytesTransferred),
                       [publisher=std::move(publisher), socket,
@@ -143,7 +147,7 @@ void TcpPublisher::sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher,
 
 void TcpPublisher::sendMsg(std::shared_ptr<ntwk::TcpPublisher> publisher,
                            asio::ip::tcp::socket *socket,
-                           std::shared_ptr<flatbuffers::DetachedBuffer> msg,
+                           std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
                            unsigned int totalMsgBytesTransferred) {
     auto pMsg = msg.get();
     asio::async_write(*socket, asio::buffer(pMsg->data() + totalMsgBytesTransferred,

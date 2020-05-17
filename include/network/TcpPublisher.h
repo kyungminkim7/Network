@@ -35,13 +35,13 @@ private:
 
     static void sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher,
                               asio::ip::tcp::socket *socket,
-                              std::shared_ptr<std_msgs::Header> msgHeader,
-                              std::shared_ptr<flatbuffers::DetachedBuffer> msg,
+                              std::shared_ptr<const std_msgs::Header> msgHeader,
+                              std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
                               unsigned int totalMsgHeaderBytesTransferred);
 
     static void sendMsg(std::shared_ptr<ntwk::TcpPublisher> publisher,
                         asio::ip::tcp::socket *socket,
-                        std::shared_ptr<flatbuffers::DetachedBuffer> msg,
+                        std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
                         unsigned int totalMsgBytesTransferred);
 
     asio::io_context &ioContext;
