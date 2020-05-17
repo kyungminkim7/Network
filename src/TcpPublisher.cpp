@@ -61,7 +61,7 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
             std::lock_guard<std::mutex> guard(this->msgQueueMutex);
 
             this->compressedMsgQueue.emplace(std::async(
-                 [msg=std::move(msg)]{return zlib::compressMsg(msg.get());}));
+                 [msg=std::move(msg)]{return zlib::encodeMsg(msg.get());}));
 
             while (this->compressedMsgQueue.size() > this->msgQueueSize) {
                 this->compressedMsgQueue.pop();
@@ -89,7 +89,7 @@ void TcpPublisher::publishImage(unsigned int width, unsigned int height, uint8_t
     switch (this->compression) {
     case Compression::JPEG:
         compressionTask = std::async([width, height, channels, data=std::move(data)]() {
-            return jpeg::compressImage(width, height, channels, data->data());
+            return jpeg::encodeMsg(width, height, channels, data->data());
         });
         break;
     default:

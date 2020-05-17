@@ -5,11 +5,13 @@
 #include <std_msgs/Uint8Array_generated.h>
 #include <zlib/zlib.h>
 
+#include <network/Image.h>
+
 namespace ntwk {
 
 namespace zlib {
 
-std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(flatbuffers::DetachedBuffer *msg) {
+std::shared_ptr<flatbuffers::DetachedBuffer> encodeMsg(flatbuffers::DetachedBuffer *msg) {
     // Initialize compression
     z_stream zStream;
     zStream.zalloc = Z_NULL;
@@ -50,7 +52,7 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(flatbuffers::DetachedBu
     return std::make_shared<flatbuffers::DetachedBuffer>(msgBuilder.Release());
 }
 
-std::unique_ptr<uint8_t[]> decompressMsg(uint8_t compressedMsgBuffer[]) {
+std::unique_ptr<uint8_t[]> decodeMsg(uint8_t compressedMsgBuffer[]) {
     // Initialize decompression
     auto compressedMsg = std_msgs::GetMutableCompressed(compressedMsgBuffer);
 
@@ -79,8 +81,8 @@ std::unique_ptr<uint8_t[]> decompressMsg(uint8_t compressedMsgBuffer[]) {
 
 namespace jpeg {
 
-std::shared_ptr<flatbuffers::DetachedBuffer> compressImage(unsigned int width, unsigned int height,
-                                                           uint8_t channels, const uint8_t data[]) {
+std::shared_ptr<flatbuffers::DetachedBuffer> encodeMsg(unsigned int width, unsigned int height,
+                                                       uint8_t channels, const uint8_t data[]) {
     int format;
     switch (channels) {
     case 1:
@@ -128,6 +130,52 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressImage(unsigned int width, u
     msgBuilder.Finish(jpegMsg);
 
     return std::make_shared<flatbuffers::DetachedBuffer>(msgBuilder.Release());
+}
+
+std::unique_ptr<Image> decodeMsg(const uint8_t jpegMsgBuffer[]) {
+    // Initialize decompressor
+    auto decompressor = tjInitDecompress();
+    if (decompressor == NULL) {
+        return nullptr;
+    }
+
+    // Get jpeg image properties
+    auto jpegMsg = std_msgs::GetUint8Array(jpegMsgBuffer);
+    int width, height, subsample, colorspace;
+    if (tjDecompressHeader3(decompressor, jpegMsg->data()->data(), jpegMsg->data()->size(),
+                            &width, &height, &subsample, &colorspace) != 0) {
+        tjDestroy(decompressor);
+        return nullptr;
+    }
+
+    uint8_t channels;
+    int format;
+    switch (colorspace) {
+    case TJCS_GRAY:
+        channels = 1;
+        format = TJPF_GRAY;
+        break;
+    case TJCS_RGB:
+        channels = 3;
+        format = TJPF_RGB;
+        break;
+    default:
+        tjDestroy(decompressor);
+        return nullptr;
+    }
+
+    // Decompress image
+    auto img = std::make_unique<Image>();
+    img->width = width;
+    img->height = height;
+    img->channels = channels;
+    img->data = std::make_unique<uint8_t[]>(width * height * channels);
+
+    auto result = tjDecompress2(decompressor, jpegMsg->data()->data(), jpegMsg->data()->size(),
+                                img->data.get(), width, 0, height, format, TJFLAG_FASTDCT | TJFLAG_NOREALLOC);
+    tjDestroy(decompressor);
+
+    return result == 0 ? std::move(img) : nullptr;
 }
 
 } // namespace jpeg
