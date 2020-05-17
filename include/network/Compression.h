@@ -18,6 +18,9 @@ std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> compressedMs
 
 namespace jpeg {
 
+std::shared_ptr<flatbuffers::DetachedBuffer> compressImage(unsigned int width, unsigned int height,
+                                                           uint8_t channels, const uint8_t data[]);
+
 } // namespace jpeg
 
 } // namespace ntwk

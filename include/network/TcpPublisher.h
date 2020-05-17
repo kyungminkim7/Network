@@ -23,7 +23,8 @@ public:
                                                 Compression compression);
 
     void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
-    void publishImage(unsigned int width, unsigned int height, uint8_t channels, const uint8_t data[]);
+    void publishImage(unsigned int width, unsigned int height, uint8_t channels,
+                      std::shared_ptr<const std::vector<uint8_t>> data);
 
     void update();
 

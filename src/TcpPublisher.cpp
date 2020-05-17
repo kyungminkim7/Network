@@ -2,7 +2,7 @@
 
 #include <asio/write.hpp>
 
-#include <sensor_msgs/ImageMsgBuilder.h>
+#include <sensor_msgs/Image_generated.h>
 
 namespace ntwk {
 
@@ -82,11 +82,39 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
     }
 }
 
-void TcpPublisher::publishImage(unsigned int width, unsigned int height,
-                                uint8_t channels, const uint8_t data[]) {
+void TcpPublisher::publishImage(unsigned int width, unsigned int height, uint8_t channels,
+                                std::shared_ptr<const std::vector<uint8_t>> data) {
+    // Determine the type of compression to accomplish
+    std::future<std::shared_ptr<flatbuffers::DetachedBuffer>> compressionTask;
     switch (this->compression) {
+    case Compression::JPEG:
+        compressionTask = std::async([width, height, channels, data=std::move(data)]() {
+            return jpeg::compressImage(width, height, channels, data->data());
+        });
+        break;
     default:
-        this->publish(sensor_msgs::buildImageMsg(width, height, channels, data));
+        break;
+    }
+
+
+    // Queue the msg
+    switch (this->compression) {
+    case Compression::JPEG: {
+            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+            this->compressedMsgQueue.push(std::move(compressionTask));
+            while (this->compressedMsgQueue.size() > this->msgQueueSize) {
+                this->compressedMsgQueue.pop();
+            }
+        }
+        break;
+
+    default: {
+            flatbuffers::FlatBufferBuilder imgMsgBuilder(data->size() + 100);
+            auto imgMsgData = imgMsgBuilder.CreateVector(*data);
+            auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
+            imgMsgBuilder.Finish(imgMsg);
+            this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
+        }
         break;
     }
 }
