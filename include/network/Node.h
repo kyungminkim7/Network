@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <forward_list>
 #include <functional>
-#include <future>
 #include <memory>
 #include <mutex>
+#include <thread>
 
 #include <asio/io_context.hpp>
 
@@ -42,7 +42,7 @@ private:
     std::mutex subscribersMutex;
 
     std::atomic<bool> running;
-    std::future<void> updateFuture;
+    std::thread updateThread;
 };
 
 } // namespace ntwk
