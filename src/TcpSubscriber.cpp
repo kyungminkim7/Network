@@ -5,8 +5,6 @@
 
 #include <network/Image.h>
 
-#include <iostream>
-
 namespace ntwk {
 
 using namespace asio::ip;
@@ -200,8 +198,6 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
             receiveMsg(std::move(subscriber), std::move(msg), msgSize_bytes, totalMsgBytesReceived);
             return;
         }
-
-        std::cout << "Received: " << msgSize_bytes << "\n";
 
         // Queue the completed msg for handling
         {
