@@ -2,7 +2,7 @@
 
 #include <asio/write.hpp>
 
-#include <sensor_msgs/Image_generated.h>
+#include <sensor_msgs/ImageMsgBuilder.h>
 
 namespace ntwk {
 
@@ -85,14 +85,9 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
 void TcpPublisher::publishImage(unsigned int width, unsigned int height,
                                 uint8_t channels, const uint8_t data[]) {
     switch (this->compression) {
-    default: {
-        flatbuffers::FlatBufferBuilder imgMsgBuilder;
-        auto imgMsgData = imgMsgBuilder.CreateVector(data, width * height * channels);
-        auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
-        imgMsgBuilder.Finish(imgMsg);
-        this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
+    default:
+        this->publish(sensor_msgs::buildImageMsg(width, height, channels, data));
         break;
-    }
     }
 }
 
