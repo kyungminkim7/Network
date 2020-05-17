@@ -13,13 +13,21 @@
 
 namespace ntwk {
 
+struct Image;
+
 class TcpSubscriber : public std::enable_shared_from_this<TcpSubscriber> {
 public:
-    using MessageReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
+    using MsgReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
+    using ImageMsgReceivedHandler = std::function<void(std::unique_ptr<Image>)>;
 
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
                                                  const std::string &host, unsigned short port,
-                                                 MessageReceivedHandler msgReceivedHandler,
+                                                 MsgReceivedHandler msgReceivedHandler,
+                                                 unsigned int msgQueueSize, Compression compression);
+
+    static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
+                                                 const std::string &host, unsigned short port,
+                                                 ImageMsgReceivedHandler imgMsgReceivedHandler,
                                                  unsigned int msgQueueSize, Compression compression);
 
     void update();
@@ -27,7 +35,12 @@ public:
 private:
     TcpSubscriber(asio::io_context &ioContext,
                   const std::string &host, unsigned short port,
-                  MessageReceivedHandler msgReceivedHandler,
+                  MsgReceivedHandler msgReceivedHandler,
+                  unsigned int msgQueueSize, Compression compression);
+
+    TcpSubscriber(asio::io_context &ioContext,
+                  const std::string &host, unsigned short port,
+                  ImageMsgReceivedHandler imgMsgReceivedHandler,
                   unsigned int msgQueueSize, Compression compression);
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
@@ -44,7 +57,8 @@ private:
 
     asio::ip::tcp::endpoint endpoint;
 
-    MessageReceivedHandler msgReceivedHandler;
+    MsgReceivedHandler msgReceivedHandler;
+    ImageMsgReceivedHandler imgMsgReceivedHandler;
 
     std::queue<std::unique_ptr<uint8_t[]>> msgQueue;
     std::mutex msgQueueMutex;
