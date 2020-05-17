@@ -161,10 +161,13 @@ std::unique_ptr<Image> decodeMsg(const uint8_t jpegMsgBuffer[]) {
         channels = 1;
         format = TJPF_GRAY;
         break;
+
+    case TJCS_YCbCr:
     case TJCS_RGB:
         channels = 3;
         format = TJPF_RGB;
         break;
+
     default:
         tjDestroy(decompressor);
         return nullptr;
