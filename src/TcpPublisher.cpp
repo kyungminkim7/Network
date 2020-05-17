@@ -56,67 +56,21 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
 }
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
-    switch (this->compression) {
-    case Compression::ZLIB: {
-            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
-
-            this->compressedMsgQueue.emplace(std::async(
-                 [msg=std::move(msg)]{return zlib::encodeMsg(msg.get());}));
-
-            while (this->compressedMsgQueue.size() > this->msgQueueSize) {
-                this->compressedMsgQueue.pop();
-            }
-        }
-        break;
-
-    default: { // Uncompressed
-            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
-
-            this->msgQueue.emplace(std::move(msg));
-
-            while (this->msgQueue.size() > this->msgQueueSize) {
-                this->msgQueue.pop();
-            }
-        }
-        break;
+    std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+    this->msgQueue.emplace(std::move(msg));
+    while (this->msgQueue.size() > this->msgQueueSize) {
+        this->msgQueue.pop();
     }
 }
 
 void TcpPublisher::publishImage(unsigned int width, unsigned int height, uint8_t channels,
-                                std::shared_ptr<const std::vector<uint8_t>> data) {
-    // Determine the type of compression to accomplish
-    std::future<std::shared_ptr<flatbuffers::DetachedBuffer>> compressionTask;
-    switch (this->compression) {
-    case Compression::JPEG:
-        compressionTask = std::async([width, height, channels, data=std::move(data)]() {
-            return jpeg::encodeMsg(width, height, channels, data->data());
-        });
-        break;
-    default:
-        break;
-    }
-
-
-    // Queue the msg
-    switch (this->compression) {
-    case Compression::JPEG: {
-            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
-            this->compressedMsgQueue.push(std::move(compressionTask));
-            while (this->compressedMsgQueue.size() > this->msgQueueSize) {
-                this->compressedMsgQueue.pop();
-            }
-        }
-        break;
-
-    default: {
-            flatbuffers::FlatBufferBuilder imgMsgBuilder(data->size() + 100);
-            auto imgMsgData = imgMsgBuilder.CreateVector(*data);
-            auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
-            imgMsgBuilder.Finish(imgMsg);
-            this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
-        }
-        break;
-    }
+                                const uint8_t data[]) {
+    const auto size = width * height * channels;
+    flatbuffers::FlatBufferBuilder imgMsgBuilder(size + 100);
+    auto imgMsgData = imgMsgBuilder.CreateVector(data, size);
+    auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
+    imgMsgBuilder.Finish(imgMsg);
+    this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
 }
 
 void TcpPublisher::update() {
@@ -127,34 +81,22 @@ void TcpPublisher::update() {
         return;
     }
 
-    switch (this->compression) {
-    case Compression::ZLIB:
-        {
-            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
-
-            if (this->compressedMsgQueue.empty()) {
-                return;
-            }
-
-            msg = this->compressedMsgQueue.front().get();
-            this->compressedMsgQueue.pop();
-        }
-
-        if (msg == nullptr) {
+    {
+        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
+        if (this->msgQueue.empty()) {
             return;
         }
+        msg = std::move(this->msgQueue.front());
+        this->msgQueue.pop();
+    }
+
+    // Compress (if applicable)
+    switch (this->compression) {
+    case Compression::ZLIB:
+        msg = zlib::encodeMsg(msg.get());
         break;
 
-    default: {
-            std::lock_guard<std::mutex> guard(this->msgQueueMutex);
-
-            if (this->msgQueue.empty()) {
-                return;
-            }
-
-            msg = std::move(this->msgQueue.front());
-            this->msgQueue.pop();
-        }
+    default:
         break;
     }
 

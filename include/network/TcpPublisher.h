@@ -1,6 +1,5 @@
 #pragma once
 
-#include <future>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -24,7 +23,7 @@ public:
 
     void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
     void publishImage(unsigned int width, unsigned int height, uint8_t channels,
-                      std::shared_ptr<const std::vector<uint8_t>> data);
+                      const uint8_t data[]);
 
     void update();
 
@@ -52,7 +51,6 @@ private:
     std::mutex socketsMutex;
 
     std::queue<std::shared_ptr<flatbuffers::DetachedBuffer>> msgQueue;
-    std::queue<std::future<std::shared_ptr<flatbuffers::DetachedBuffer>>> compressedMsgQueue;
     unsigned int msgQueueSize;
     std::mutex msgQueueMutex;
     std::weak_ptr<flatbuffers::DetachedBuffer> msgBeingSent;
