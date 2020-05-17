@@ -10,6 +10,7 @@ add_subdirectory(extern)
 # Create targets and set properties
 add_library(${PROJECT_NAME}
     "src/Compression.cpp"
+    "src/ImageMsgBuilder.cpp"
     "src/Node.cpp"
     "src/TcpPublisher.cpp"
     "src/TcpSubscriber.cpp"
@@ -29,7 +30,6 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME} PUBLIC
     asio::asio
     flatbuffers
-    turbojpeg-static
     zlibstatic
 )
 
