@@ -27,10 +27,13 @@ target_include_directories(${PROJECT_NAME}
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
-    asio::asio
-    flatbuffers
-    zlibstatic
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        asio::asio
+        flatbuffers
+    PRIVATE
+        turbojpeg-static
+        zlibstatic
 )
 
 target_compile_features(${PROJECT_NAME}
