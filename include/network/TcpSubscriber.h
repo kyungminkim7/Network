@@ -8,6 +8,7 @@
 
 #include <asio/ip/tcp.hpp>
 #include <std_msgs/Header_generated.h>
+#include <std_msgs/MessageControl_generated.h>
 
 #include "Compression.h"
 
@@ -48,9 +49,14 @@ private:
     static void receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
                                  std::unique_ptr<std_msgs::Header> msgHeader,
                                  unsigned int totalMsgHeaderBytesReceived);
+
     static void receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
                            std::unique_ptr<uint8_t[]> msg,
                            unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived);
+
+    static void sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
+                               std::unique_ptr<std_msgs::MessageControl> msgCtrl,
+                               unsigned int totalMsgCtrlBytesTransferred);
 
     asio::ip::tcp::socket socket;
     std::mutex socketMutex;
