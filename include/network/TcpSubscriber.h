@@ -44,7 +44,7 @@ private:
                   ImageMsgReceivedHandler imgMsgReceivedHandler,
                   unsigned int msgQueueSize, Compression compression);
 
-    bool handleNextAvailableMsg();
+    void handleNextAvailableMsg();
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -60,6 +60,7 @@ private:
                                std::unique_ptr<std_msgs::MessageControl> msgCtrl,
                                unsigned int totalMsgCtrlBytesTransferred);
 
+    asio::io_context &ioContext;
     asio::ip::tcp::socket socket;
     std::mutex socketMutex;
 
