@@ -57,6 +57,21 @@ void TcpPublisher::removeSocket(tcp::socket *socket) {
 }
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+    // Compress (if applicable)
+    switch (this->compression) {
+    case Compression::ZLIB:
+        msg = zlib::encodeMsg(msg.get());
+        break;
+
+    case Compression::JPEG:
+        msg = jpeg::encodeMsg(msg.get());
+        break;
+
+    default:
+        break;
+    }
+
+    // Enqueue msg for processing
     std::lock_guard<std::mutex> guard(this->msgQueueMutex);
     this->msgQueue.emplace(std::move(msg));
     while (this->msgQueue.size() > this->msgQueueSize) {
@@ -89,20 +104,6 @@ void TcpPublisher::update() {
         }
         msg = std::move(this->msgQueue.front());
         this->msgQueue.pop();
-    }
-
-    // Compress (if applicable)
-    switch (this->compression) {
-    case Compression::ZLIB:
-        msg = zlib::encodeMsg(msg.get());
-        break;
-
-    case Compression::JPEG:
-        msg = jpeg::encodeMsg(msg.get());
-        break;
-
-    default:
-        break;
     }
 
     this->msgBeingSent = msg;
