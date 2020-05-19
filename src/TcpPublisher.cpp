@@ -63,10 +63,6 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
         msg = zlib::encodeMsg(msg.get());
         break;
 
-    case Compression::JPEG:
-        msg = jpeg::encodeMsg(msg.get());
-        break;
-
     default:
         break;
     }
@@ -81,12 +77,20 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
 
 void TcpPublisher::publishImage(unsigned int width, unsigned int height, uint8_t channels,
                                 const uint8_t data[]) {
-    const auto size = width * height * channels;
-    flatbuffers::FlatBufferBuilder imgMsgBuilder(size + 100);
-    auto imgMsgData = imgMsgBuilder.CreateVector(data, size);
-    auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
-    imgMsgBuilder.Finish(imgMsg);
-    this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
+    switch (this->compression) {
+    case Compression::JPEG:
+        this->publish(jpeg::encodeMsg(width, height, channels, data));
+        break;
+    default: {
+            const auto size = width * height * channels;
+            flatbuffers::FlatBufferBuilder imgMsgBuilder(size + 100);
+            auto imgMsgData = imgMsgBuilder.CreateVector(data, size);
+            auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
+            imgMsgBuilder.Finish(imgMsg);
+            this->publish(std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release()));
+        }
+        break;
+    }
 }
 
 void TcpPublisher::update() {
