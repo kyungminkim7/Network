@@ -5,16 +5,9 @@
 
 namespace ntwk {
 
-Node::Node(unsigned short fps) : period(1.0f / static_cast<float>(fps)), running(true), updateThread([this]{
+Node::Node(unsigned short fps) : mainContext(), tasksContext(), period(1.0f / static_cast<float>(fps)), running(true), updateThread([this]{
     auto lastThreadUpdateTime = std::chrono::system_clock::now();
     while (this->running.load()) {
-        {
-            std::lock_guard<std::mutex> guard(this->publishersMutex);
-            for (auto &p : this->publishers) {
-                p->update();
-            }
-        }
-
         {
             std::lock_guard<std::mutex> guard(this->subscribersMutex);
             for (auto &s : this->subscribers) {
@@ -30,28 +23,29 @@ Node::Node(unsigned short fps) : period(1.0f / static_cast<float>(fps)), running
         }
         lastThreadUpdateTime = currentTime;
     }
+}), tasksThread([this]{
+    auto work = asio::make_work_guard(this->tasksContext);
+    this->tasksContext.run();
 }) { }
 
 Node::~Node() {
     this->running.store(false);
     this->updateThread.join();
+
+    this->tasksContext.stop();
+    this->tasksThread.join();
 }
 
-std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port,
-                                              unsigned int msgQueueSize,
-                                              Compression compression) {
-    auto p = TcpPublisher::create(this->ioContext, port, msgQueueSize, compression);
-    {
-        std::lock_guard<std::mutex> guard(this->publishersMutex);
-        this->publishers.emplace_front(p);
-    }
+std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port, Compression compression) {
+    auto p = TcpPublisher::create(this->tasksContext, port, compression);
+    this->publishers.emplace_front(p);
     return p;
 }
 
 std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
                                                std::function<void (std::unique_ptr<uint8_t[]>)> msgReceivedHandler,
                                                unsigned int msgQueueSize, Compression compression) {
-    auto s = TcpSubscriber::create(this->ioContext, host, port,
+    auto s = TcpSubscriber::create(this->mainContext, host, port,
                                    std::move(msgReceivedHandler),
                                    msgQueueSize, compression);
     {
@@ -64,7 +58,7 @@ std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned
 std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
                                                std::function<void (std::unique_ptr<Image>)> imgMsgReceivedHandler,
                                                unsigned int msgQueueSize, Compression compression) {
-    auto s = TcpSubscriber::create(this->ioContext, host, port,
+    auto s = TcpSubscriber::create(this->mainContext, host, port,
                                    std::move(imgMsgReceivedHandler),
                                    msgQueueSize, compression);
     {
@@ -75,8 +69,8 @@ std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned
 }
 
 void Node::update() {
-    this->ioContext.poll();
-    this->ioContext.restart();
+    this->mainContext.poll();
+    this->mainContext.restart();
 }
 
 void Node::sleep() {

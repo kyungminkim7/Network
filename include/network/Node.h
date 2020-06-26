@@ -25,7 +25,6 @@ public:
     ~Node();
 
     std::shared_ptr<TcpPublisher> advertise(unsigned short port,
-                                            unsigned int msgQueueSize=1,
                                             Compression compression=Compression::NONE);
     std::shared_ptr<TcpSubscriber> subscribe(const std::string &host, unsigned short port,
                                              std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler,
@@ -40,19 +39,21 @@ public:
     void sleep();
 
 private:
-    asio::io_context ioContext;
+    asio::io_context mainContext;
+    asio::io_context tasksContext;
+
     std::chrono::duration<float> period;
     std::chrono::system_clock::time_point lastUpdateTime;
     bool lastUpdateTimeInitialized = false;
 
     std::forward_list<std::shared_ptr<TcpPublisher>> publishers;
-    std::mutex publishersMutex;
 
     std::forward_list<std::shared_ptr<TcpSubscriber>> subscribers;
     std::mutex subscribersMutex;
 
     std::atomic<bool> running;
     std::thread updateThread;
+    std::thread tasksThread;
 };
 
 } // namespace ntwk
