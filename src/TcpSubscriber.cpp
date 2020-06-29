@@ -184,18 +184,18 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
         }
 
         // Schedule msg to be handled by callback handler
+        auto isFull = false;
         {
             std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
 
-            auto wasEmpty = subscriber->imgMsgQueue.empty();
-
             while (subscriber->imgMsgQueue.size() >= subscriber->msgQueueSize) {
                 subscriber->imgMsgQueue.pop();
+                isFull = true;
             }
 
             subscriber->imgMsgQueue.push(std::move(img));
 
-            if (wasEmpty) {
+            if (!isFull) {
                 postImgMsgHandlingTask(std::move(subscriber));
             }
         }
@@ -217,18 +217,18 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
         }
 
         // Schedule msg to be handled by callback handler
+        auto isFull = false;
         {
             std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
 
-            auto wasEmpty = subscriber->msgQueue.empty();
-
             while (subscriber->msgQueue.size() >= subscriber->msgQueueSize) {
                 subscriber->msgQueue.pop();
+                isFull = true;
             }
 
             subscriber->msgQueue.push(std::move(msg));
 
-            if (wasEmpty) {
+            if (!isFull) {
                 postMsgHandlingTask(std::move(subscriber));
             }
         }
@@ -241,17 +241,11 @@ void TcpSubscriber::postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscr
     asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
         std::unique_ptr<Image> img;
 
+        // Grab next img for handling
         {
             std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
-
-            // Grab next img for handling
             img = std::move(subscriber->imgMsgQueue.front());
             subscriber->imgMsgQueue.pop();
-
-            // Schedule job to handle next img msg
-            if (!subscriber->imgMsgQueue.empty()) {
-                postImgMsgHandlingTask(std::move(subscriber));
-            }
         }
 
         pSubscriber->imgMsgReceivedHandler(std::move(img));
@@ -264,17 +258,11 @@ void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscribe
     asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
         std::unique_ptr<uint8_t[]> msg;
 
+        // Grab next msg for handling
         {
             std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
-
-            // Grab next msg for handling
             msg = std::move(subscriber->msgQueue.front());
             subscriber->msgQueue.pop();
-
-            // Schedule job to handle next msg
-            if (!subscriber->msgQueue.empty()) {
-                postMsgHandlingTask(std::move(subscriber));
-            }
         }
 
         pSubscriber->msgReceivedHandler(std::move(msg));
