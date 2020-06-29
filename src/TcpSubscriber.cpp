@@ -150,30 +150,51 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
 
 void TcpSubscriber::handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg) {
     auto pSubscriber = subscriber.get();
-    asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber), msg=std::move(msg)]() mutable {
-        if (subscriber->imgMsgReceivedHandler) { // Process image msgs
-            std::unique_ptr<Image> img = nullptr;
 
-            switch (subscriber->compression) {
-            case Compression::JPEG:
-                img = jpeg::decodeMsg(msg.get());
-                break;
+    if (subscriber->imgMsgReceivedHandler) { // Process image msgs
+        std::unique_ptr<Image> img = nullptr;
 
-            case Compression::ZLIB:
-                msg = zlib::decodeMsg(msg.get());
-            default:
-                if (msg != nullptr) {
-                    auto imgMsg = sensor_msgs::GetImage(msg.get());
-                    img = std::make_unique<Image>();
-                    img->width = imgMsg->width();
-                    img->height = imgMsg->height();
-                    img->data = std::make_unique<uint8_t[]>(imgMsg->data()->size());
-                    std::copy(imgMsg->data()->cbegin(), imgMsg->data()->cend(), img->data.get());
-                }
-                break;
+        // Extract img data and decompress if needed
+        switch (subscriber->compression) {
+        case Compression::JPEG:
+            img = jpeg::decodeMsg(msg.get());
+            break;
+
+        case Compression::ZLIB:
+            msg = zlib::decodeMsg(msg.get());
+        default:
+            if (msg != nullptr) {
+                auto imgMsg = sensor_msgs::GetImage(msg.get());
+                img = std::make_unique<Image>();
+                img->width = imgMsg->width();
+                img->height = imgMsg->height();
+                img->data = std::make_unique<uint8_t[]>(imgMsg->data()->size());
+                std::copy(imgMsg->data()->cbegin(), imgMsg->data()->cend(), img->data.get());
+            }
+            break;
+        }
+
+        // Close connection and reconnect if error occurred
+        if (img == nullptr) {
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
             }
 
-            if (img == nullptr) {
+            connect(std::move(subscriber));
+            return;
+        }
+
+        // Call msg handler on main context
+        asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber), img=std::move(img)]() mutable {
+            subscriber->imgMsgReceivedHandler(std::move(img));
+        });
+    } else { // Process normal msgs
+        // Decompress msg if necessary
+        if (subscriber->compression == Compression::ZLIB) {
+            msg = zlib::decodeMsg(msg.get());
+
+            if (msg == nullptr) {
                 {
                     std::lock_guard<std::mutex> guard(subscriber->socketMutex);
                     subscriber->socket.close();
@@ -182,26 +203,13 @@ void TcpSubscriber::handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::un
                 connect(std::move(subscriber));
                 return;
             }
-
-            subscriber->imgMsgReceivedHandler(std::move(img));
-        } else { // Process normal msgs
-            if (subscriber->compression == Compression::ZLIB) {
-                msg = zlib::decodeMsg(msg.get());
-
-                if (msg == nullptr) {
-                    {
-                        std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                        subscriber->socket.close();
-                    }
-
-                    connect(std::move(subscriber));
-                    return;
-                }
-            }
-
-            subscriber->msgReceivedHandler(std::move(msg));
         }
-    });
+
+        // Call msg handler on main context
+        asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber), msg=std::move(msg)]() mutable {
+            subscriber->msgReceivedHandler(std::move(msg));
+        });
+    }
 }
 
 void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
