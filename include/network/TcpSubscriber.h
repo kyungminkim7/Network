@@ -21,25 +21,27 @@ public:
     using MsgReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
     using ImageMsgReceivedHandler = std::function<void(std::unique_ptr<Image>)>;
 
-    static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
+    static std::shared_ptr<TcpSubscriber> create(asio::io_context &mainContext,
+                                                 asio::io_context &subscriberContext,
                                                  const std::string &host, unsigned short port,
                                                  MsgReceivedHandler msgReceivedHandler,
                                                  unsigned int msgQueueSize, Compression compression);
 
-    static std::shared_ptr<TcpSubscriber> create(asio::io_context &ioContext,
+    static std::shared_ptr<TcpSubscriber> create(asio::io_context &mainContext,
+                                                 asio::io_context &subscriberContext,
                                                  const std::string &host, unsigned short port,
                                                  ImageMsgReceivedHandler imgMsgReceivedHandler,
                                                  unsigned int msgQueueSize, Compression compression);
 
-    void update();
-
 private:
-    TcpSubscriber(asio::io_context &ioContext,
+    TcpSubscriber(asio::io_context &mainContext,
+                  asio::io_context &subscriberContext,
                   const std::string &host, unsigned short port,
                   MsgReceivedHandler msgReceivedHandler,
                   unsigned int msgQueueSize, Compression compression);
 
-    TcpSubscriber(asio::io_context &ioContext,
+    TcpSubscriber(asio::io_context &mainContext,
+                  asio::io_context &subscriberContext,
                   const std::string &host, unsigned short port,
                   ImageMsgReceivedHandler imgMsgReceivedHandler,
                   unsigned int msgQueueSize, Compression compression);
@@ -54,11 +56,15 @@ private:
                            std::unique_ptr<uint8_t[]> msg,
                            unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived);
 
+    static void handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg);
+
     static void sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
                                std::unique_ptr<std_msgs::MessageControl> msgCtrl,
                                unsigned int totalMsgCtrlBytesTransferred);
 
-    asio::io_context &ioContext;
+    asio::io_context &mainContext;
+    asio::io_context &subscriberContext;
+
     asio::ip::tcp::socket socket;
     std::mutex socketMutex;
 
@@ -68,7 +74,6 @@ private:
     ImageMsgReceivedHandler imgMsgReceivedHandler;
 
     std::queue<std::unique_ptr<uint8_t[]>> msgQueue;
-    std::mutex msgQueueMutex;
     unsigned int msgQueueSize;
 
     Compression compression;

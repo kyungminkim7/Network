@@ -10,132 +10,69 @@ namespace ntwk {
 
 using namespace asio::ip;
 
-std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &ioContext,
+std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainContext,
+                                                     asio::io_context &subscriberContext,
                                                      const std::string &host, unsigned short port,
                                                      MsgReceivedHandler msgReceivedHandler,
                                                      unsigned int msgQueueSize, Compression compression) {
-    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(ioContext, host, port,
+    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
+                                                                host, port,
                                                                 std::move(msgReceivedHandler),
                                                                 msgQueueSize, compression));
-    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     connect(subscriber);
     return subscriber;
 }
 
-std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &ioContext,
+std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainContext,
+                                                     asio::io_context &subscriberContext,
                                                      const std::string &host, unsigned short port,
                                                      ImageMsgReceivedHandler imgMsgReceivedHandler,
                                                      unsigned int msgQueueSize, Compression compression) {
-    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(ioContext, host, port,
+    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
+                                                                host, port,
                                                                 std::move(imgMsgReceivedHandler),
                                                                 msgQueueSize, compression));
-    {
-        std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-        connect(subscriber);
-    }
+    connect(subscriber);
     return subscriber;
 }
 
-TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
+TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
+                             asio::io_context &subscriberContext,
                              const std::string &host, unsigned short port,
                              MsgReceivedHandler msgReceivedHandler,
                              unsigned int msgQueueSize, Compression compression) :
-    ioContext(ioContext), socket(ioContext), endpoint(make_address(host), port),
+    mainContext(mainContext), subscriberContext(subscriberContext),
+    socket(subscriberContext), endpoint(make_address(host), port),
     msgReceivedHandler(std::move(msgReceivedHandler)),
     msgQueueSize(msgQueueSize), compression(compression) {}
 
-TcpSubscriber::TcpSubscriber(asio::io_context &ioContext,
+TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
+                             asio::io_context &subscriberContext,
                              const std::string &host, unsigned short port,
                              ImageMsgReceivedHandler imgMsgReceivedHandler,
                              unsigned int msgQueueSize, Compression compression) :
-    ioContext(ioContext), socket(ioContext), endpoint(make_address(host), port),
+    mainContext(mainContext), subscriberContext(subscriberContext),
+    socket(subscriberContext), endpoint(make_address(host), port),
     imgMsgReceivedHandler(std::move(imgMsgReceivedHandler)),
     msgQueueSize(msgQueueSize), compression(compression) {}
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
 
+    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     pSubscriber->socket.async_connect(pSubscriber->endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
         if (error) {
-            std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-            subscriber->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
+            }
+
+            connect(std::move(subscriber));
         } else {
             // Start receiving messages
             receiveMsgHeader(std::move(subscriber), std::make_unique<std_msgs::Header>(), 0u);
         }
     });
-}
-
-void TcpSubscriber::update() {
-    // Attempt to connect to a socket if connection was broken
-    {
-        std::lock_guard<std::mutex> guard(this->socketMutex);
-        if (!this->socket.is_open()) {
-            connect(shared_from_this());
-        }
-    }
-
-    std::unique_ptr<uint8_t[]> msg;
-
-    // Get next msg in queue
-    {
-        std::lock_guard<std::mutex> guard(this->msgQueueMutex);
-
-        if (this->msgQueue.empty()) {
-            return;
-        }
-
-        msg = std::move(this->msgQueue.front());
-        this->msgQueue.pop();
-    }
-
-    if (this->imgMsgReceivedHandler) { // Handle image msgs
-        std::unique_ptr<Image> img = nullptr;
-
-        switch (this->compression) {
-        case Compression::JPEG:
-            img = jpeg::decodeMsg(msg.get());
-            break;
-
-        case Compression::ZLIB:
-            msg = zlib::decodeMsg(msg.get());
-        default:
-            if (msg != nullptr) {
-                auto imgMsg = sensor_msgs::GetImage(msg.get());
-                img = std::make_unique<Image>();
-                img->width = imgMsg->width();
-                img->height = imgMsg->height();
-                img->data = std::make_unique<uint8_t[]>(imgMsg->data()->size());
-                std::copy(imgMsg->data()->cbegin(), imgMsg->data()->cend(), img->data.get());
-            }
-            break;
-        }
-
-        if (img == nullptr) {
-            std::lock_guard<std::mutex> guard(this->socketMutex);
-            this->socket.close();
-            return;
-        }
-
-        asio::post(this->ioContext, [imgMsgReceivedHandler=this->imgMsgReceivedHandler, img=std::move(img)]() mutable {
-            imgMsgReceivedHandler(std::move(img));
-        });
-
-    } else { // Handle normal msgs
-        if (this->compression == Compression::ZLIB) {
-            msg = zlib::decodeMsg(msg.get());
-
-            if (msg == nullptr) {
-                std::lock_guard<std::mutex> guard(this->socketMutex);
-                this->socket.close();
-                return;
-            }
-        }
-
-        asio::post(this->ioContext, [msgReceivedHandler=this->msgReceivedHandler, msg=std::move(msg)]() mutable {
-            msgReceivedHandler(std::move(msg));
-        });
-    }
 }
 
 void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
@@ -149,10 +86,14 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
                                                         sizeof(std_msgs::Header) - totalMsgHeaderBytesReceived),
                      [subscriber=std::move(subscriber), msgHeader=std::move(msgHeader),
                      totalMsgHeaderBytesReceived](const auto &error, auto bytesReceived) mutable {
-        // Close down socket and try reconnecting on the next update cycle upon fatal error
+        // Try reconnecting upon fatal error
         if (error) {
-            std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-            subscriber->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
+            }
+
+            connect(std::move(subscriber));
             return;
         }
 
@@ -180,10 +121,14 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
                                                         msgSize_bytes - totalMsgBytesReceived),
                      [subscriber=std::move(subscriber), msg=std::move(msg),
                      msgSize_bytes, totalMsgBytesReceived](const auto &error, auto bytesReceived) mutable {
-        // Close down socket and try reconnecting on the next update cycle upon fatal error
+        // Try reconnecting upon fatal error
         if (error) {
-            std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-            subscriber->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
+            }
+
+            connect(std::move(subscriber));
             return;
         }
 
@@ -194,19 +139,68 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
             return;
         }
 
-        // Queue the completed msg for handling
-        {
-            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
-            subscriber->msgQueue.emplace(std::move(msg));
-            while (subscriber->msgQueue.size() > subscriber->msgQueueSize) {
-                subscriber->msgQueue.pop();
-            }
-        }
+        handleMsg(subscriber, std::move(msg));
 
         // Acknowledge msg reception
         sendMsgControl(std::move(subscriber),
                        std::make_unique<std_msgs::MessageControl>(std_msgs::MessageControl::ACK),
                        0u);
+    });
+}
+
+void TcpSubscriber::handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg) {
+    auto pSubscriber = subscriber.get();
+    asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber), msg=std::move(msg)]() mutable {
+        if (subscriber->imgMsgReceivedHandler) { // Process image msgs
+            std::unique_ptr<Image> img = nullptr;
+
+            switch (subscriber->compression) {
+            case Compression::JPEG:
+                img = jpeg::decodeMsg(msg.get());
+                break;
+
+            case Compression::ZLIB:
+                msg = zlib::decodeMsg(msg.get());
+            default:
+                if (msg != nullptr) {
+                    auto imgMsg = sensor_msgs::GetImage(msg.get());
+                    img = std::make_unique<Image>();
+                    img->width = imgMsg->width();
+                    img->height = imgMsg->height();
+                    img->data = std::make_unique<uint8_t[]>(imgMsg->data()->size());
+                    std::copy(imgMsg->data()->cbegin(), imgMsg->data()->cend(), img->data.get());
+                }
+                break;
+            }
+
+            if (img == nullptr) {
+                {
+                    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                    subscriber->socket.close();
+                }
+
+                connect(std::move(subscriber));
+                return;
+            }
+
+            subscriber->imgMsgReceivedHandler(std::move(img));
+        } else { // Process normal msgs
+            if (subscriber->compression == Compression::ZLIB) {
+                msg = zlib::decodeMsg(msg.get());
+
+                if (msg == nullptr) {
+                    {
+                        std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                        subscriber->socket.close();
+                    }
+
+                    connect(std::move(subscriber));
+                    return;
+                }
+            }
+
+            subscriber->msgReceivedHandler(std::move(msg));
+        }
     });
 }
 
@@ -221,10 +215,14 @@ void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
                                                         sizeof(std_msgs::MessageControl) - totalMsgCtrlBytesTransferred),
                       [subscriber=std::move(subscriber), msgCtrl=std::move(msgCtrl),
                       totalMsgCtrlBytesTransferred](const auto &error, auto bytesTransferred) mutable {
-        // Close down socket and try reconnecting on next update cycle upon fatal error
+        // Close down socket and try reconnecting upon fatal error
         if (error) {
-            std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-            subscriber->socket.close();
+            {
+                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
+                subscriber->socket.close();
+            }
+
+            connect(std::move(subscriber));
             return;
         }
 

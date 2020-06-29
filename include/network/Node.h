@@ -1,12 +1,10 @@
 #pragma once
 
-#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <forward_list>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <thread>
 
 #include <asio/io_context.hpp>
@@ -47,12 +45,8 @@ private:
     bool lastUpdateTimeInitialized = false;
 
     std::forward_list<std::shared_ptr<TcpPublisher>> publishers;
-
     std::forward_list<std::shared_ptr<TcpSubscriber>> subscribers;
-    std::mutex subscribersMutex;
 
-    std::atomic<bool> running;
-    std::thread updateThread;
     std::thread tasksThread;
 };
 
