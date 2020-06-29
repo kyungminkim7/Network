@@ -139,7 +139,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
             return;
         }
 
-        handleMsg(subscriber, std::move(msg));
+        processMsg(subscriber, std::move(msg));
 
         // Acknowledge msg reception
         sendMsgControl(std::move(subscriber),
@@ -148,9 +148,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
     });
 }
 
-void TcpSubscriber::handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg) {
-    auto pSubscriber = subscriber.get();
-
+void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg) {
     if (subscriber->imgMsgReceivedHandler) { // Process image msgs
         std::unique_ptr<Image> img = nullptr;
 
@@ -185,10 +183,23 @@ void TcpSubscriber::handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::un
             return;
         }
 
-        // Call msg handler on main context
-        asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber), img=std::move(img)]() mutable {
-            subscriber->imgMsgReceivedHandler(std::move(img));
-        });
+        // Schedule msg to be handled by callback handler
+        {
+            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
+
+            auto wasEmpty = subscriber->imgMsgQueue.empty();
+
+            while (subscriber->imgMsgQueue.size() >= subscriber->msgQueueSize) {
+                subscriber->imgMsgQueue.pop();
+            }
+
+            subscriber->imgMsgQueue.push(std::move(img));
+
+            if (wasEmpty) {
+                postImgMsgHandlingTask(std::move(subscriber));
+            }
+        }
+
     } else { // Process normal msgs
         // Decompress msg if necessary
         if (subscriber->compression == Compression::ZLIB) {
@@ -205,11 +216,69 @@ void TcpSubscriber::handleMsg(std::shared_ptr<TcpSubscriber> subscriber, std::un
             }
         }
 
-        // Call msg handler on main context
-        asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber), msg=std::move(msg)]() mutable {
-            subscriber->msgReceivedHandler(std::move(msg));
-        });
+        // Schedule msg to be handled by callback handler
+        {
+            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
+
+            auto wasEmpty = subscriber->msgQueue.empty();
+
+            while (subscriber->msgQueue.size() >= subscriber->msgQueueSize) {
+                subscriber->msgQueue.pop();
+            }
+
+            subscriber->msgQueue.push(std::move(msg));
+
+            if (wasEmpty) {
+                postMsgHandlingTask(std::move(subscriber));
+            }
+        }
     }
+}
+
+void TcpSubscriber::postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber) {
+    auto pSubscriber = subscriber.get();
+
+    asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
+        std::unique_ptr<Image> img;
+
+        {
+            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
+
+            // Grab next img for handling
+            img = std::move(subscriber->imgMsgQueue.front());
+            subscriber->imgMsgQueue.pop();
+
+            // Schedule job to handle next img msg
+            if (!subscriber->imgMsgQueue.empty()) {
+                postImgMsgHandlingTask(std::move(subscriber));
+            }
+        }
+
+        pSubscriber->imgMsgReceivedHandler(std::move(img));
+    });
+}
+
+void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber) {
+    auto pSubscriber = subscriber.get();
+
+    asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
+        std::unique_ptr<uint8_t[]> msg;
+
+        {
+            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
+
+            // Grab next msg for handling
+            msg = std::move(subscriber->msgQueue.front());
+            subscriber->msgQueue.pop();
+
+            // Schedule job to handle next msg
+            if (!subscriber->msgQueue.empty()) {
+                postMsgHandlingTask(std::move(subscriber));
+            }
+        }
+
+        pSubscriber->msgReceivedHandler(std::move(msg));
+    });
 }
 
 void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
