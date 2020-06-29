@@ -13,6 +13,8 @@ Node::Node(unsigned short fps) : mainContext(), tasksContext(), period(1.0f / st
 
 Node::~Node() {
     this->tasksContext.stop();
+    this->mainContext.stop();
+
     this->tasksThread.join();
 }
 
@@ -42,7 +44,12 @@ std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned
     return s;
 }
 
-void Node::update() {
+void Node::run() {
+    auto work = asio::make_work_guard(this->mainContext);
+    this->mainContext.run();
+}
+
+void Node::runOnce() {
     this->mainContext.poll();
     this->mainContext.restart();
 }

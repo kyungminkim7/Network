@@ -33,7 +33,8 @@ public:
                                              unsigned int msgQueueSize=1,
                                              Compression Compression=Compression::NONE);
 
-    void update();
+    void run();
+    void runOnce();
     void sleep();
 
 private:
