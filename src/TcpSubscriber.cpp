@@ -184,18 +184,13 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
         }
 
         // Schedule msg to be handled by callback handler
-        auto isFull = false;
         {
             std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
 
-            while (subscriber->imgMsgQueue.size() >= subscriber->msgQueueSize) {
-                subscriber->imgMsgQueue.pop();
-                isFull = true;
-            }
-
             subscriber->imgMsgQueue.push(std::move(img));
 
-            if (!isFull) {
+            if (subscriber->imgMsgQueue.size() > subscriber->msgQueueSize) {
+                subscriber->imgMsgQueue.pop();
                 postImgMsgHandlingTask(std::move(subscriber));
             }
         }
@@ -217,18 +212,13 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
         }
 
         // Schedule msg to be handled by callback handler
-        auto isFull = false;
         {
             std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
 
-            while (subscriber->msgQueue.size() >= subscriber->msgQueueSize) {
-                subscriber->msgQueue.pop();
-                isFull = true;
-            }
-
             subscriber->msgQueue.push(std::move(msg));
 
-            if (!isFull) {
+            if (subscriber->msgQueue.size() > subscriber->msgQueueSize) {
+                subscriber->msgQueue.pop();
                 postMsgHandlingTask(std::move(subscriber));
             }
         }
