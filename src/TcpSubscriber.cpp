@@ -191,6 +191,7 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
 
             if (subscriber->imgMsgQueue.size() > subscriber->msgQueueSize) {
                 subscriber->imgMsgQueue.pop();
+            } else {
                 postImgMsgHandlingTask(std::move(subscriber));
             }
         }
@@ -219,6 +220,7 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
 
             if (subscriber->msgQueue.size() > subscriber->msgQueueSize) {
                 subscriber->msgQueue.pop();
+            } else {
                 postMsgHandlingTask(std::move(subscriber));
             }
         }
