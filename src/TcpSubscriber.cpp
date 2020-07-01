@@ -14,11 +14,11 @@ std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainConte
                                                      asio::io_context &subscriberContext,
                                                      const std::string &host, unsigned short port,
                                                      MsgReceivedHandler msgReceivedHandler,
-                                                     unsigned int msgQueueSize, Compression compression) {
+                                                     Compression compression) {
     std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
                                                                 host, port,
                                                                 std::move(msgReceivedHandler),
-                                                                msgQueueSize, compression));
+                                                                compression));
     connect(subscriber);
     return subscriber;
 }
@@ -27,11 +27,11 @@ std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainConte
                                                      asio::io_context &subscriberContext,
                                                      const std::string &host, unsigned short port,
                                                      ImageMsgReceivedHandler imgMsgReceivedHandler,
-                                                     unsigned int msgQueueSize, Compression compression) {
+                                                     Compression compression) {
     std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
                                                                 host, port,
                                                                 std::move(imgMsgReceivedHandler),
-                                                                msgQueueSize, compression));
+                                                                compression));
     connect(subscriber);
     return subscriber;
 }
@@ -40,21 +40,21 @@ TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
                              asio::io_context &subscriberContext,
                              const std::string &host, unsigned short port,
                              MsgReceivedHandler msgReceivedHandler,
-                             unsigned int msgQueueSize, Compression compression) :
+                             Compression compression) :
     mainContext(mainContext), subscriberContext(subscriberContext),
     socket(subscriberContext), endpoint(make_address(host), port),
     msgReceivedHandler(std::move(msgReceivedHandler)),
-    msgQueueSize(msgQueueSize), compression(compression) {}
+    compression(compression) {}
 
 TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
                              asio::io_context &subscriberContext,
                              const std::string &host, unsigned short port,
                              ImageMsgReceivedHandler imgMsgReceivedHandler,
-                             unsigned int msgQueueSize, Compression compression) :
+                             Compression compression) :
     mainContext(mainContext), subscriberContext(subscriberContext),
     socket(subscriberContext), endpoint(make_address(host), port),
     imgMsgReceivedHandler(std::move(imgMsgReceivedHandler)),
-    msgQueueSize(msgQueueSize), compression(compression) {}
+    compression(compression) {}
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
@@ -150,9 +150,8 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
 
 void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg) {
     if (subscriber->imgMsgReceivedHandler) { // Process image msgs
-        std::unique_ptr<Image> img = nullptr;
-
         // Extract img data and decompress if needed
+        std::unique_ptr<Image> img = nullptr;
         switch (subscriber->compression) {
         case Compression::JPEG:
             img = jpeg::decodeMsg(msg.get());
@@ -189,7 +188,7 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
 
             subscriber->imgMsgQueue.push(std::move(img));
 
-            if (subscriber->imgMsgQueue.size() > subscriber->msgQueueSize) {
+            if (subscriber->imgMsgQueue.size() > MSG_QUEUE_SIZE) {
                 subscriber->imgMsgQueue.pop();
             } else {
                 postImgMsgHandlingTask(std::move(subscriber));
@@ -218,7 +217,7 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
 
             subscriber->msgQueue.push(std::move(msg));
 
-            if (subscriber->msgQueue.size() > subscriber->msgQueueSize) {
+            if (subscriber->msgQueue.size() > MSG_QUEUE_SIZE) {
                 subscriber->msgQueue.pop();
             } else {
                 postMsgHandlingTask(std::move(subscriber));

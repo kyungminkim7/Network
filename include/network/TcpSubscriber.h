@@ -25,26 +25,26 @@ public:
                                                  asio::io_context &subscriberContext,
                                                  const std::string &host, unsigned short port,
                                                  MsgReceivedHandler msgReceivedHandler,
-                                                 unsigned int msgQueueSize, Compression compression);
+                                                 Compression compression);
 
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &mainContext,
                                                  asio::io_context &subscriberContext,
                                                  const std::string &host, unsigned short port,
                                                  ImageMsgReceivedHandler imgMsgReceivedHandler,
-                                                 unsigned int msgQueueSize, Compression compression);
+                                                 Compression compression);
 
 private:
     TcpSubscriber(asio::io_context &mainContext,
                   asio::io_context &subscriberContext,
                   const std::string &host, unsigned short port,
                   MsgReceivedHandler msgReceivedHandler,
-                  unsigned int msgQueueSize, Compression compression);
+                  Compression compression);
 
     TcpSubscriber(asio::io_context &mainContext,
                   asio::io_context &subscriberContext,
                   const std::string &host, unsigned short port,
                   ImageMsgReceivedHandler imgMsgReceivedHandler,
-                  unsigned int msgQueueSize, Compression compression);
+                  Compression compression);
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -76,10 +76,11 @@ private:
     MsgReceivedHandler msgReceivedHandler;
     ImageMsgReceivedHandler imgMsgReceivedHandler;
 
+    // Queues for double buffering msgs
     std::queue<std::unique_ptr<uint8_t[]>> msgQueue;
     std::queue<std::unique_ptr<Image>> imgMsgQueue;
-    unsigned int msgQueueSize;
     std::mutex msgQueueMutex;
+    static const unsigned int MSG_QUEUE_SIZE = 2u;
 
     Compression compression;
 };

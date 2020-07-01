@@ -26,20 +26,18 @@ std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port, Compression c
 
 std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
                                                std::function<void (std::unique_ptr<uint8_t[]>)> msgReceivedHandler,
-                                               unsigned int msgQueueSize, Compression compression) {
+                                               Compression compression) {
     auto s = TcpSubscriber::create(this->mainContext, this->tasksContext, host, port,
-                                   std::move(msgReceivedHandler),
-                                   msgQueueSize, compression);
+                                   std::move(msgReceivedHandler), compression);
     this->subscribers.emplace_front(s);
     return s;
 }
 
 std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
                                                std::function<void (std::unique_ptr<Image>)> imgMsgReceivedHandler,
-                                               unsigned int msgQueueSize, Compression compression) {
+                                               Compression compression) {
     auto s = TcpSubscriber::create(this->mainContext, this->tasksContext, host, port,
-                                   std::move(imgMsgReceivedHandler),
-                                   msgQueueSize, compression);
+                                   std::move(imgMsgReceivedHandler), compression);
     this->subscribers.emplace_front(s);
     return s;
 }

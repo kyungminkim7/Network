@@ -26,11 +26,9 @@ public:
                                             Compression compression=Compression::NONE);
     std::shared_ptr<TcpSubscriber> subscribe(const std::string &host, unsigned short port,
                                              std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler,
-                                             unsigned int msgQueueSize=1,
                                              Compression Compression=Compression::NONE);
     std::shared_ptr<TcpSubscriber> subscribe(const std::string &host, unsigned short port,
                                              std::function<void(std::unique_ptr<Image>)> imgMsgReceivedHandler,
-                                             unsigned int msgQueueSize=1,
                                              Compression Compression=Compression::NONE);
 
     void run();
