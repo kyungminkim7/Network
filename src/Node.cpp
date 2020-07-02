@@ -5,7 +5,7 @@
 
 namespace ntwk {
 
-Node::Node(unsigned short fps) : mainContext(), tasksContext(), period(1.0f / static_cast<float>(fps)),
+Node::Node() : mainContext(), tasksContext(),
     tasksThread([this]{
         auto work = asio::make_work_guard(this->tasksContext);
         this->tasksContext.run();
@@ -50,20 +50,6 @@ void Node::run() {
 void Node::runOnce() {
     this->mainContext.poll_one();
     this->mainContext.restart();
-}
-
-void Node::sleep() {
-    if (this->lastUpdateTimeInitialized) {
-        const auto currentTime = std::chrono::system_clock::now();
-        const auto timeElapsed = currentTime - this->lastUpdateTime;
-        if (timeElapsed < this->period) {
-            std::this_thread::sleep_for(this->period - timeElapsed);
-        }
-        this->lastUpdateTime = currentTime;
-    } else {
-        this->lastUpdateTime = std::chrono::system_clock::now();
-        this->lastUpdateTimeInitialized = true;
-    }
 }
 
 } // namespace ntwk
