@@ -7,6 +7,7 @@
 #include <queue>
 
 #include <asio/ip/tcp.hpp>
+#include <asio/steady_timer.hpp>
 #include <std_msgs/Header_generated.h>
 #include <std_msgs/MessageControl_generated.h>
 
@@ -72,6 +73,8 @@ private:
     std::mutex socketMutex;
 
     asio::ip::tcp::endpoint endpoint;
+
+    std::unique_ptr<asio::steady_timer> socketReconnectTimer;
 
     MsgReceivedHandler msgReceivedHandler;
     ImageMsgReceivedHandler imgMsgReceivedHandler;

@@ -1,10 +1,18 @@
 #include <network/TcpSubscriber.h>
 
+#include <chrono>
+
 #include <asio/read.hpp>
 #include <asio/write.hpp>
 #include <sensor_msgs/Image_generated.h>
 
 #include <network/Image.h>
+
+namespace {
+
+constexpr auto SOCKET_RECONNECT_WAIT_DURATION = std::chrono::milliseconds(30);
+
+} // namespace
 
 namespace ntwk {
 
@@ -60,14 +68,19 @@ void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
 
     std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-    pSubscriber->socket.async_connect(pSubscriber->endpoint, [subscriber=std::move(subscriber)](const auto &error) mutable {
+    pSubscriber->socket.async_connect(pSubscriber->endpoint, [pSubscriber, subscriber=std::move(subscriber)](const auto &error) mutable {
         if (error) {
             {
                 std::lock_guard<std::mutex> guard(subscriber->socketMutex);
                 subscriber->socket.close();
             }
 
-            connect(std::move(subscriber));
+            subscriber->socketReconnectTimer = std::make_unique<asio::steady_timer>(subscriber->subscriberContext,
+                                                                                    SOCKET_RECONNECT_WAIT_DURATION);
+            pSubscriber->socketReconnectTimer->async_wait([pSubscriber, subscriber=std::move(subscriber)](const auto &error) mutable {
+                connect(std::move(subscriber));
+            });
+
         } else {
             // Start receiving messages
             receiveMsgHeader(std::move(subscriber), std::make_unique<std_msgs::Header>(), 0u);
