@@ -1,4 +1,4 @@
-#include <network/TcpSubscriber.h>
+#pragma once
 
 #include <chrono>
 
@@ -6,7 +6,7 @@
 #include <asio/write.hpp>
 #include <sensor_msgs/Image_generated.h>
 
-#include <network/Image.h>
+#include "Image.h"
 
 namespace {
 
@@ -18,53 +18,60 @@ namespace ntwk {
 
 using namespace asio::ip;
 
-std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainContext,
+template<typename DecompressionStrategy>
+std::shared_ptr<TcpSubscriber<DecompressionStrategy>> TcpSubscriber<DecompressionStrategy>::create(asio::io_context &mainContext,
                                                      asio::io_context &subscriberContext,
                                                      const std::string &host, unsigned short port,
                                                      MsgReceivedHandler msgReceivedHandler,
-                                                     Compression compression) {
-    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
-                                                                host, port,
-                                                                std::move(msgReceivedHandler),
-                                                                compression));
+                                                     DecompressionStrategy decompressionStrategy) {
+    std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber(new TcpSubscriber<DecompressionStrategy>(mainContext,
+                                                                                                          subscriberContext,
+                                                                                                          host, port,
+                                                                                                          std::move(msgReceivedHandler),
+                                                                                                          decompressionStrategy));
     connect(subscriber);
     return subscriber;
 }
 
-std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainContext,
+template<typename DecompressionStrategy>
+std::shared_ptr<TcpSubscriber<DecompressionStrategy>> TcpSubscriber<DecompressionStrategy>::create(asio::io_context &mainContext,
                                                      asio::io_context &subscriberContext,
                                                      const std::string &host, unsigned short port,
                                                      ImageMsgReceivedHandler imgMsgReceivedHandler,
-                                                     Compression compression) {
-    std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
-                                                                host, port,
-                                                                std::move(imgMsgReceivedHandler),
-                                                                compression));
+                                                     DecompressionStrategy decompressionStrategy) {
+    std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber(new TcpSubscriber<DecompressionStrategy>(mainContext,
+                                                                                                          subscriberContext,
+                                                                                                          host, port,
+                                                                                                          std::move(imgMsgReceivedHandler),
+                                                                                                          decompressionStrategy));
     connect(subscriber);
     return subscriber;
 }
 
-TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
-                             asio::io_context &subscriberContext,
-                             const std::string &host, unsigned short port,
-                             MsgReceivedHandler msgReceivedHandler,
-                             Compression compression) :
+template<typename DecompressionStrategy>
+TcpSubscriber<DecompressionStrategy>::TcpSubscriber(asio::io_context &mainContext,
+                                                    asio::io_context &subscriberContext,
+                                                    const std::string &host, unsigned short port,
+                                                    MsgReceivedHandler msgReceivedHandler,
+                                                    DecompressionStrategy decompressionStrategy) :
     mainContext(mainContext), subscriberContext(subscriberContext),
     socket(subscriberContext), endpoint(make_address(host), port),
     msgReceivedHandler(std::move(msgReceivedHandler)),
-    compression(compression) {}
+    decompressionStrategy(decompressionStrategy) {}
 
-TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
-                             asio::io_context &subscriberContext,
-                             const std::string &host, unsigned short port,
-                             ImageMsgReceivedHandler imgMsgReceivedHandler,
-                             Compression compression) :
+template<typename DecompressionStrategy>
+TcpSubscriber<DecompressionStrategy>::TcpSubscriber(asio::io_context &mainContext,
+                                                    asio::io_context &subscriberContext,
+                                                    const std::string &host, unsigned short port,
+                                                    ImageMsgReceivedHandler imgMsgReceivedHandler,
+                                                    DecompressionStrategy decompressionStrategy) :
     mainContext(mainContext), subscriberContext(subscriberContext),
     socket(subscriberContext), endpoint(make_address(host), port),
     imgMsgReceivedHandler(std::move(imgMsgReceivedHandler)),
-    compression(compression) {}
+    decompressionStrategy(decompressionStrategy) {}
 
-void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::connect(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber) {
     auto pSubscriber = subscriber.get();
 
     std::lock_guard<std::mutex> guard(subscriber->socketMutex);
@@ -88,7 +95,8 @@ void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     });
 }
 
-void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::receiveMsgHeader(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber,
                                      std::unique_ptr<std_msgs::Header> msgHeader,
                                      unsigned int totalMsgHeaderBytesReceived) {
     auto pSubscriber = subscriber.get();
@@ -123,9 +131,10 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
     });
 }
 
-void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                               std::unique_ptr<uint8_t[]> msg,
-                               unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived) {
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::receiveMsg(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber,
+                                                    std::unique_ptr<uint8_t[]> msg, unsigned int msgSize_bytes,
+                                                    unsigned int totalMsgBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsg = msg.get();
 
@@ -161,26 +170,11 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
     });
 }
 
-void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::unique_ptr<uint8_t[]> msg) {
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::processMsg(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber,
+                                                    std::unique_ptr<uint8_t[]> msg) {
     if (subscriber->imgMsgReceivedHandler) { // Process image msgs
-        // Extract img data and decompress if needed
-        std::unique_ptr<Image> img = nullptr;
-        switch (subscriber->compression) {
-        case Compression::JPEG:
-            img = jpeg::decodeMsg(msg.get());
-            break;
-
-        default:
-            if (msg != nullptr) {
-                auto imgMsg = sensor_msgs::GetImage(msg.get());
-                img = std::make_unique<Image>();
-                img->width = imgMsg->width();
-                img->height = imgMsg->height();
-                img->data = std::make_unique<uint8_t[]>(imgMsg->data()->size());
-                std::copy(imgMsg->data()->cbegin(), imgMsg->data()->cend(), img->data.get());
-            }
-            break;
-        }
+        auto img = subscriber->decompressionStrategy(msg.get());
 
         // Close connection and reconnect if error occurred
         if (img == nullptr) {
@@ -219,7 +213,8 @@ void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber, std::u
     }
 }
 
-void TcpSubscriber::postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber) {
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber) {
     auto pSubscriber = subscriber.get();
 
     asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
@@ -236,7 +231,8 @@ void TcpSubscriber::postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscr
     });
 }
 
-void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber) {
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::postMsgHandlingTask(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber) {
     auto pSubscriber = subscriber.get();
 
     asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
@@ -253,7 +249,8 @@ void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscribe
     });
 }
 
-void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
+template<typename DecompressionStrategy>
+void TcpSubscriber<DecompressionStrategy>::sendMsgControl(std::shared_ptr<TcpSubscriber<DecompressionStrategy>> subscriber,
                                    std::unique_ptr<std_msgs::MessageControl> msgCtrl,
                                    unsigned int totalMsgCtrlBytesTransferred) {
     auto pSubscriber = subscriber.get();

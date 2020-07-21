@@ -1,15 +1,55 @@
 #include <network/Compression.h>
 
 #include <libjpeg-turbo/turbojpeg.h>
+#include <sensor_msgs/Image_generated.h>
 #include <std_msgs/Uint8Array_generated.h>
 
 #include <network/Image.h>
 
 namespace ntwk {
+namespace compression {
+
+namespace none {
+
+std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+    return std::move(msg);
+}
+
+std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> msgBuffer) {
+    return std::move(msgBuffer);
+}
+
+} // namespace none
+
+namespace image {
+namespace none {
+
+std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, unsigned int height,
+                                                         uint8_t channels, const uint8_t data[]) {
+    const auto size = width * height * channels;
+    flatbuffers::FlatBufferBuilder imgMsgBuilder(size + 100);
+    auto imgMsgData = imgMsgBuilder.CreateVector(data, size);
+    auto imgMsg = sensor_msgs::CreateImage(imgMsgBuilder, width, height, channels, imgMsgData);
+    imgMsgBuilder.Finish(imgMsg);
+    return std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release());
+}
+
+std::unique_ptr<Image> decompressMsg(const uint8_t msgBuffer[]) {
+    auto imgMsg = sensor_msgs::GetImage(msgBuffer);
+    auto img = std::make_unique<Image>();
+    img->width = imgMsg->width();
+    img->height = imgMsg->height();
+    img->data = std::make_unique<uint8_t[]>(imgMsg->data()->size());
+    std::copy(imgMsg->data()->cbegin(), imgMsg->data()->cend(), img->data.get());
+    return std::move(img);
+}
+
+} // namespace none
+
 namespace jpeg {
 
-std::shared_ptr<flatbuffers::DetachedBuffer> encodeMsg(unsigned int width, unsigned int height,
-                                                       uint8_t channels, const uint8_t data[]) {
+std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, unsigned int height,
+                                                         uint8_t channels, const uint8_t data[]) {
     int format;
     switch (channels) {
     case 1:
@@ -60,7 +100,7 @@ std::shared_ptr<flatbuffers::DetachedBuffer> encodeMsg(unsigned int width, unsig
     return std::make_shared<flatbuffers::DetachedBuffer>(msgBuilder.Release());
 }
 
-std::unique_ptr<Image> decodeMsg(const uint8_t jpegMsgBuffer[]) {
+std::unique_ptr<Image> decompressMsg(const uint8_t jpegMsgBuffer[]) {
     // Initialize decompressor
     auto decompressor = tjInitDecompress();
     if (decompressor == NULL) {
@@ -110,5 +150,6 @@ std::unique_ptr<Image> decodeMsg(const uint8_t jpegMsgBuffer[]) {
 }
 
 } // namespace jpeg
-
+} // namespace img
+} // namespace compression
 } // namespace ntwk

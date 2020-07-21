@@ -9,15 +9,24 @@ namespace ntwk {
 
 struct Image;
 
-enum class Compression {NONE, JPEG};
+namespace compression {
+    namespace none {
+        std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
+        std::unique_ptr<uint8_t[]> decompressMsg(std::unique_ptr<uint8_t[]> msgBuffer);
+    } // namespace none
 
-namespace jpeg {
+    namespace image {
+        namespace none {
+            std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, unsigned int height,
+                                                                     uint8_t channels, const uint8_t data[]);
+            std::unique_ptr<Image> decompressMsg(const uint8_t msgBuffer[]);
+        }
 
-std::shared_ptr<flatbuffers::DetachedBuffer> encodeMsg(unsigned int width, unsigned int height,
-                                                       uint8_t channels, const uint8_t data[]);
-std::unique_ptr<Image> decodeMsg(const uint8_t jpegMsgBuffer[]);
-
-
-} // namespace jpeg
-
+        namespace jpeg {
+            std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, unsigned int height,
+                                                                     uint8_t channels, const uint8_t data[]);
+            std::unique_ptr<Image> decompressMsg(const uint8_t jpegMsgBuffer[]);
+        } // namespace jpeg
+    } // namespace img
+} // namespace compression
 } // namespace ntwk
