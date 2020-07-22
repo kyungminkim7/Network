@@ -19,13 +19,13 @@ namespace compression {
         namespace none {
             std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, unsigned int height,
                                                                      uint8_t channels, const uint8_t data[]);
-            std::unique_ptr<Image> decompressMsg(const uint8_t msgBuffer[]);
+            std::unique_ptr<Image> decompressMsg(std::unique_ptr<uint8_t[]> msgBuffer);
         }
 
         namespace jpeg {
             std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, unsigned int height,
                                                                      uint8_t channels, const uint8_t data[]);
-            std::unique_ptr<Image> decompressMsg(const uint8_t jpegMsgBuffer[]);
+            std::unique_ptr<Image> decompressMsg(std::unique_ptr<uint8_t[]> msgBuffer);
         } // namespace jpeg
     } // namespace img
 } // namespace compression

@@ -34,8 +34,8 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, uns
     return std::make_shared<flatbuffers::DetachedBuffer>(imgMsgBuilder.Release());
 }
 
-std::unique_ptr<Image> decompressMsg(const uint8_t msgBuffer[]) {
-    auto imgMsg = sensor_msgs::GetImage(msgBuffer);
+std::unique_ptr<Image> decompressMsg(std::unique_ptr<uint8_t[]> msgBuffer) {
+    auto imgMsg = sensor_msgs::GetImage(msgBuffer.get());
     auto img = std::make_unique<Image>();
     img->width = imgMsg->width();
     img->height = imgMsg->height();
@@ -100,7 +100,7 @@ std::shared_ptr<flatbuffers::DetachedBuffer> compressMsg(unsigned int width, uns
     return std::make_shared<flatbuffers::DetachedBuffer>(msgBuilder.Release());
 }
 
-std::unique_ptr<Image> decompressMsg(const uint8_t jpegMsgBuffer[]) {
+std::unique_ptr<Image> decompressMsg(std::unique_ptr<uint8_t[]> jpegMsgBuffer) {
     // Initialize decompressor
     auto decompressor = tjInitDecompress();
     if (decompressor == NULL) {
@@ -108,7 +108,7 @@ std::unique_ptr<Image> decompressMsg(const uint8_t jpegMsgBuffer[]) {
     }
 
     // Get jpeg image properties
-    auto jpegMsg = std_msgs::GetUint8Array(jpegMsgBuffer);
+    auto jpegMsg = std_msgs::GetUint8Array(jpegMsgBuffer.get());
     int width, height, subsample, colorspace;
     if (tjDecompressHeader3(decompressor, jpegMsg->data()->data(), jpegMsg->data()->size(),
                             &width, &height, &subsample, &colorspace) != 0) {
