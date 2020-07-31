@@ -76,8 +76,8 @@ void TcpPublisher<CompressionStrategy>::publish(std::shared_ptr<flatbuffers::Det
 }
 
 template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::publishImage(unsigned int width, unsigned int height,
-                                                     uint8_t channels, const uint8_t data[]) {
+void TcpPublisher<CompressionStrategy>::publish(unsigned int width, unsigned int height,
+                                                uint8_t channels, const uint8_t data[]) {
     auto msg = this->compressionStrategy(width, height, channels, data);
     if (msg == nullptr) {
         return;
