@@ -49,12 +49,12 @@ private:
 
 template<typename CompressionStrategy>
 std::shared_ptr<TcpPublisher<CompressionStrategy>> Node::advertise(unsigned short port, CompressionStrategy compressionStrategy) {
-    return TcpPublisher<CompressionStrategy>::create(this->tasksContext, port, compressionStrategy);
+    return TcpPublisher<CompressionStrategy>::create(this->tasksContext, port, std::move(compressionStrategy));
 }
 
 template<typename CompressionStrategy>
 std::shared_ptr<TcpPublisher<CompressionStrategy>> Node::advertiseImage(unsigned short port, CompressionStrategy compressionStrategy) {
-    return TcpPublisher<CompressionStrategy>::create(this->tasksContext, port, compressionStrategy);
+    return TcpPublisher<CompressionStrategy>::create(this->tasksContext, port, std::move(compressionStrategy));
 }
 
 template<typename DecompressionStrategy>

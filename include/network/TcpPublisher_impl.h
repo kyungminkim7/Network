@@ -12,7 +12,7 @@ std::shared_ptr<TcpPublisher<CompressionStrategy>> TcpPublisher<CompressionStrat
                                                    unsigned short port,
                                                    CompressionStrategy compressionStrategy) {
     std::shared_ptr<TcpPublisher<CompressionStrategy>> publisher(
-                new TcpPublisher<CompressionStrategy>(publisherContext, port, compressionStrategy));
+                new TcpPublisher<CompressionStrategy>(publisherContext, port, std::move(compressionStrategy)));
     publisher->listenForConnections();
     return publisher;
 }
@@ -23,7 +23,7 @@ TcpPublisher<CompressionStrategy>::TcpPublisher(asio::io_context &publisherConte
                                                 CompressionStrategy compressionStrategy) :
     publisherContext(publisherContext),
     socketAcceptor(publisherContext, tcp::endpoint(tcp::v4(), port)),
-    compressionStrategy(compressionStrategy) { }
+    compressionStrategy(std::move(compressionStrategy)) { }
 
 template<typename CompressionStrategy>
 void TcpPublisher<CompressionStrategy>::listenForConnections() {
