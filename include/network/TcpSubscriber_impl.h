@@ -25,7 +25,7 @@ std::shared_ptr<TcpSubscriber<T, DecompressionStrategy>> TcpSubscriber<T, Decomp
     std::shared_ptr<TcpSubscriber<T, DecompressionStrategy>> subscriber(new TcpSubscriber<T, DecompressionStrategy>(mainContext, subscriberContext,
                                                                                                                     host, port,
                                                                                                                     std::move(msgReceivedHandler),
-                                                                                                                    decompressionStrategy));
+                                                                                                                    std::move(decompressionStrategy)));
     connect(subscriber);
     return subscriber;
 }
@@ -40,7 +40,7 @@ TcpSubscriber<T, DecompressionStrategy>::TcpSubscriber(asio::io_context &mainCon
     mainContext(mainContext), subscriberContext(subscriberContext),
     socket(subscriberContext), endpoint(make_address(host), port),
     msgReceivedHandler(std::move(msgReceivedHandler)),
-    decompressionStrategy(decompressionStrategy) {}
+    decompressionStrategy(std::move(decompressionStrategy)) {}
 
 template<typename T, typename DecompressionStrategy>
 void TcpSubscriber<T, DecompressionStrategy>::connect(std::shared_ptr<TcpSubscriber<T, DecompressionStrategy>> subscriber) {

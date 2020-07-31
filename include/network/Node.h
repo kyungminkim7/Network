@@ -64,7 +64,7 @@ std::shared_ptr<TcpSubscriber<uint8_t[], DecompressionStrategy>> Node::subscribe
     return TcpSubscriber<uint8_t[], DecompressionStrategy>::create(this->mainContext, this->tasksContext,
                                                                    host, port,
                                                                    std::move(msgReceivedHandler),
-                                                                   decompressionStrategy);
+                                                                   std::move(decompressionStrategy));
 }
 
 template<typename DecompressionStrategy>
@@ -73,7 +73,7 @@ std::shared_ptr<TcpSubscriber<Image, DecompressionStrategy>> Node::subscribeImag
                                                                                   DecompressionStrategy decompressionStrategy) {
     return TcpSubscriber<Image, DecompressionStrategy>::create(this->mainContext, this->tasksContext,
                                                                host, port, std::move(imgMsgReceivedHandler),
-                                                               decompressionStrategy);
+                                                               std::move(decompressionStrategy));
 }
 
 } // namespace ntwk
