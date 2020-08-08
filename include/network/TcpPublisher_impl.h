@@ -7,26 +7,23 @@ namespace ntwk {
 
 using namespace asio::ip;
 
-template<typename CompressionStrategy>
-std::shared_ptr<TcpPublisher<CompressionStrategy>> TcpPublisher<CompressionStrategy>::create(asio::io_context &publisherContext,
-                                                   unsigned short port,
-                                                   CompressionStrategy compressionStrategy) {
-    std::shared_ptr<TcpPublisher<CompressionStrategy>> publisher(
-                new TcpPublisher<CompressionStrategy>(publisherContext, port, std::move(compressionStrategy)));
+template<typename CompressionPolicy>
+std::shared_ptr<TcpPublisher<CompressionPolicy>> TcpPublisher<CompressionPolicy>::create(
+        asio::io_context &publisherContext, unsigned short port) {
+    std::shared_ptr<TcpPublisher<CompressionPolicy>> publisher(
+                new TcpPublisher<CompressionPolicy>(publisherContext, port));
     publisher->listenForConnections();
     return publisher;
 }
 
-template<typename CompressionStrategy>
-TcpPublisher<CompressionStrategy>::TcpPublisher(asio::io_context &publisherContext,
-                                                unsigned short port,
-                                                CompressionStrategy compressionStrategy) :
+template<typename CompressionPolicy>
+TcpPublisher<CompressionPolicy>::TcpPublisher(asio::io_context &publisherContext,
+                                              unsigned short port) :
     publisherContext(publisherContext),
-    socketAcceptor(publisherContext, tcp::endpoint(tcp::v4(), port)),
-    compressionStrategy(std::move(compressionStrategy)) { }
+    socketAcceptor(publisherContext, tcp::endpoint(tcp::v4(), port)) { }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::listenForConnections() {
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::listenForConnections() {
     auto socket = std::make_unique<tcp::socket>(this->publisherContext);
     auto pSocket = socket.get();
 
@@ -43,8 +40,8 @@ void TcpPublisher<CompressionStrategy>::listenForConnections() {
     });
 }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::removeSocket(Socket *socket) {
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::removeSocket(Socket *socket) {
     for (auto iter = this->connectedSockets.cbegin(); iter != this->connectedSockets.cend(); ) {
         if (iter->socket.get() == socket->socket.get()) {
             iter = this->connectedSockets.erase(iter);
@@ -55,10 +52,10 @@ void TcpPublisher<CompressionStrategy>::removeSocket(Socket *socket) {
     }
 }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
     asio::post(this->publisherContext, [publisher=this->shared_from_this(), msg=std::move(msg)]() mutable {
-        msg = publisher->compressionStrategy(std::move(msg));
+        msg = CompressionPolicy::compressMsg(std::move(msg));
         if (msg == nullptr) {
             return;
         }
@@ -75,10 +72,10 @@ void TcpPublisher<CompressionStrategy>::publish(std::shared_ptr<flatbuffers::Det
     });
 }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::publish(unsigned int width, unsigned int height,
-                                                uint8_t channels, const uint8_t data[]) {
-    auto msg = this->compressionStrategy(width, height, channels, data);
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::publish(unsigned int width, unsigned int height,
+                                              uint8_t channels, const uint8_t data[]) {
+    auto msg = CompressionPolicy::compressMsg(width, height, channels, data);
     if (msg == nullptr) {
         return;
     }
@@ -96,11 +93,11 @@ void TcpPublisher<CompressionStrategy>::publish(unsigned int width, unsigned int
     });
 }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher<CompressionStrategy>> publisher, Socket *socket,
-                                 std::shared_ptr<const std_msgs::Header> msgHeader,
-                                 std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
-                                 unsigned int totalMsgHeaderBytesTransferred) {
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher<CompressionPolicy>> publisher, Socket *socket,
+                                                    std::shared_ptr<const std_msgs::Header> msgHeader,
+                                                    std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
+                                                    unsigned int totalMsgHeaderBytesTransferred) {
     // Publish msg header
     auto pMsgHeader = reinterpret_cast<const uint8_t*>(msgHeader.get());
     asio::async_write(*socket->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesTransferred,
@@ -126,10 +123,10 @@ void TcpPublisher<CompressionStrategy>::sendMsgHeader(std::shared_ptr<ntwk::TcpP
     });
 }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::sendMsg(std::shared_ptr<ntwk::TcpPublisher<CompressionStrategy>> publisher, Socket *socket,
-                           std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
-                           unsigned int totalMsgBytesTransferred) {
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::sendMsg(std::shared_ptr<ntwk::TcpPublisher<CompressionPolicy>> publisher, Socket *socket,
+                                              std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
+                                              unsigned int totalMsgBytesTransferred) {
     auto pMsg = msg.get();
     asio::async_write(*socket->socket, asio::buffer(pMsg->data() + totalMsgBytesTransferred,
                                                     pMsg->size() - totalMsgBytesTransferred),
@@ -154,10 +151,10 @@ void TcpPublisher<CompressionStrategy>::sendMsg(std::shared_ptr<ntwk::TcpPublish
     });
 }
 
-template<typename CompressionStrategy>
-void TcpPublisher<CompressionStrategy>::receiveMsgControl(std::shared_ptr<TcpPublisher<CompressionStrategy>> publisher, Socket *socket,
-                                     std::unique_ptr<std_msgs::MessageControl> msgCtrl,
-                                     unsigned int totalMsgCtrlBytesReceived) {
+template<typename CompressionPolicy>
+void TcpPublisher<CompressionPolicy>::receiveMsgControl(std::shared_ptr<TcpPublisher<CompressionPolicy>> publisher, Socket *socket,
+                                                        std::unique_ptr<std_msgs::MessageControl> msgCtrl,
+                                                        unsigned int totalMsgCtrlBytesReceived) {
     auto pMsgCtrl = reinterpret_cast<uint8_t*>(msgCtrl.get());
     asio::async_read(*socket->socket, asio::buffer(pMsgCtrl + totalMsgCtrlBytesReceived,
                                                    sizeof(std_msgs::MessageControl) - totalMsgCtrlBytesReceived),

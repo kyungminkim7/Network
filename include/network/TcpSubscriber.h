@@ -5,7 +5,6 @@
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <type_traits>
 
 #include <asio/ip/tcp.hpp>
 #include <asio/steady_timer.hpp>
@@ -16,7 +15,7 @@ namespace ntwk {
 
 struct Image;
 
-template<typename T, typename DecompressionStrategy>
+template<typename T, typename DecompressionPolicy>
 class TcpSubscriber {
 public:
     using MsgReceivedHandler = std::function<void(std::unique_ptr<T>)>;
@@ -24,15 +23,13 @@ public:
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &mainContext,
                                                  asio::io_context &subscriberContext,
                                                  const std::string &host, unsigned short port,
-                                                 MsgReceivedHandler msgReceivedHandler,
-                                                 DecompressionStrategy decompressionStrategy);
+                                                 MsgReceivedHandler msgReceivedHandler);
 
 private:
     TcpSubscriber(asio::io_context &mainContext,
                   asio::io_context &subscriberContext,
                   const std::string &host, unsigned short port,
-                  MsgReceivedHandler msgReceivedHandler,
-                  DecompressionStrategy decompressionStrategy);
+                  MsgReceivedHandler msgReceivedHandler);
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -70,9 +67,6 @@ private:
     std::queue<std::unique_ptr<T>> msgQueue;
     std::mutex msgQueueMutex;
     static const unsigned int MSG_QUEUE_SIZE = 2u;
-
-    std::conditional_t<std::is_function<DecompressionStrategy>::value,
-                       std::add_pointer_t<DecompressionStrategy>, DecompressionStrategy> decompressionStrategy;
 };
 
 } // namespace ntwk
