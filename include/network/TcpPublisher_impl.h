@@ -42,14 +42,7 @@ void TcpPublisher<CompressionPolicy>::listenForConnections() {
 
 template<typename CompressionPolicy>
 void TcpPublisher<CompressionPolicy>::removeSocket(Socket *socket) {
-    for (auto iter = this->connectedSockets.cbegin(); iter != this->connectedSockets.cend(); ) {
-        if (iter->socket.get() == socket->socket.get()) {
-            iter = this->connectedSockets.erase(iter);
-            return;
-        } else {
-            ++iter;
-        }
-    }
+    this->connectedSockets.remove_if([socket](const auto &s){ return s.socket.get() == socket->socket.get(); });
 }
 
 template<typename CompressionPolicy>
