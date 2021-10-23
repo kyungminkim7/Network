@@ -15,16 +15,14 @@ struct TcpPublisher::Socket {
         socket(std::move(socket)), readyToWrite(true){}
 };
 
-std::shared_ptr<TcpPublisher> TcpPublisher::create(
-        asio::io_context &publisherContext, unsigned short port) {
-    std::shared_ptr<TcpPublisher> publisher(
-                new TcpPublisher(publisherContext, port));
+std::shared_ptr<TcpPublisher> TcpPublisher::create(asio::io_context &publisherContext,
+                                                   unsigned short port) {
+    std::shared_ptr<TcpPublisher> publisher(new TcpPublisher(publisherContext, port));
     publisher->listenForConnections();
     return publisher;
 }
 
-TcpPublisher::TcpPublisher(asio::io_context &publisherContext,
-                                              unsigned short port) :
+TcpPublisher::TcpPublisher(asio::io_context &publisherContext, unsigned short port) :
     publisherContext(publisherContext),
     socketAcceptor(publisherContext, tcp::endpoint(tcp::v4(), port)) { }
 
@@ -63,9 +61,9 @@ void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
 }
 
 void TcpPublisher::sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket *socket,
-                                                    std::shared_ptr<const std_msgs::Header> msgHeader,
-                                                    std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
-                                                    unsigned int totalMsgHeaderBytesTransferred) {
+                                 std::shared_ptr<const std_msgs::Header> msgHeader,
+                                 std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
+                                 unsigned int totalMsgHeaderBytesTransferred) {
     // Publish msg header
     auto pMsgHeader = reinterpret_cast<const uint8_t*>(msgHeader.get());
     asio::async_write(*socket->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesTransferred,
@@ -92,8 +90,8 @@ void TcpPublisher::sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher, 
 }
 
 void TcpPublisher::sendMsg(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket *socket,
-                                              std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
-                                              unsigned int totalMsgBytesTransferred) {
+                           std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
+                           unsigned int totalMsgBytesTransferred) {
     auto pMsg = msg.get();
     asio::async_write(*socket->socket, asio::buffer(pMsg->data() + totalMsgBytesTransferred,
                                                     pMsg->size() - totalMsgBytesTransferred),
@@ -119,8 +117,8 @@ void TcpPublisher::sendMsg(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket
 }
 
 void TcpPublisher::receiveMsgControl(std::shared_ptr<TcpPublisher> publisher, Socket *socket,
-                                                        std::unique_ptr<std_msgs::MessageControl> msgCtrl,
-                                                        unsigned int totalMsgCtrlBytesReceived) {
+                                     std::unique_ptr<std_msgs::MessageControl> msgCtrl,
+                                     unsigned int totalMsgCtrlBytesReceived) {
     auto pMsgCtrl = reinterpret_cast<uint8_t*>(msgCtrl.get());
     asio::async_read(*socket->socket, asio::buffer(pMsgCtrl + totalMsgCtrlBytesReceived,
                                                    sizeof(std_msgs::MessageControl) - totalMsgCtrlBytesReceived),
