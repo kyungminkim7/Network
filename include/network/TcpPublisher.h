@@ -19,13 +19,7 @@ public:
     void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
 private:
-    struct Socket {
-        std::unique_ptr<asio::ip::tcp::socket> socket;
-        bool readyToWrite;
-
-        explicit Socket(std::unique_ptr<asio::ip::tcp::socket> socket) :
-            socket(std::move(socket)), readyToWrite(true){}
-    };
+    struct Socket;
 
     TcpPublisher(asio::io_context &publisherContext, unsigned short port);
 

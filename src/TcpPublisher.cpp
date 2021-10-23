@@ -7,6 +7,14 @@ namespace ntwk {
 
 using namespace asio::ip;
 
+struct TcpPublisher::Socket {
+    std::unique_ptr<asio::ip::tcp::socket> socket;
+    bool readyToWrite;
+
+    explicit Socket(std::unique_ptr<asio::ip::tcp::socket> socket) :
+        socket(std::move(socket)), readyToWrite(true){}
+};
+
 std::shared_ptr<TcpPublisher> TcpPublisher::create(
         asio::io_context &publisherContext, unsigned short port) {
     std::shared_ptr<TcpPublisher> publisher(
@@ -38,7 +46,9 @@ void TcpPublisher::listenForConnections() {
 }
 
 void TcpPublisher::removeSocket(Socket *socket) {
-    this->connectedSockets.remove_if([socket](const auto &s){ return s.socket.get() == socket->socket.get(); });
+    this->connectedSockets.remove_if([socket](const auto &s){
+        return s.socket.get() == socket->socket.get();
+    });
 }
 
 void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
