@@ -15,10 +15,9 @@ namespace ntwk {
 
 struct Image;
 
-template<typename T, typename DecompressionPolicy>
 class TcpSubscriber {
 public:
-    using MsgReceivedHandler = std::function<void(std::unique_ptr<T>)>;
+    using MsgReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
 
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &mainContext,
                                                  asio::io_context &subscriberContext,
@@ -42,7 +41,7 @@ private:
                            unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived);
 
     static void processMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                           std::unique_ptr<uint8_t[]> msgBuffer);
+                           std::unique_ptr<uint8_t[]> msg);
     static void postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber);
     static void postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -64,11 +63,9 @@ private:
     MsgReceivedHandler msgReceivedHandler;
 
     // Queues for double buffering msgs
-    std::queue<std::unique_ptr<T>> msgQueue;
+    std::queue<std::unique_ptr<uint8_t[]>> msgQueue;
     std::mutex msgQueueMutex;
     static const unsigned int MSG_QUEUE_SIZE = 2u;
 };
 
 } // namespace ntwk
-
-#include "TcpSubscriber_impl.h"
