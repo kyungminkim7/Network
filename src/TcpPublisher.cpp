@@ -36,11 +36,9 @@ void TcpPublisher::listenForConnections() {
     this->socketAcceptor.async_accept(*pSocket,
                                       [publisher=this->shared_from_this(),
                                        socket=std::move(socket)](const auto &error) mutable {
-        if (error) {
-            throw asio::system_error(error);
+        if (!error) {
+            publisher->connectedSockets.emplace_back(std::move(socket));
         }
-
-        publisher->connectedSockets.emplace_back(std::move(socket));
         publisher->listenForConnections();
     });
 }
