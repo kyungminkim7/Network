@@ -2,7 +2,6 @@
 
 #include <list>
 #include <memory>
-#include <vector>
 
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
