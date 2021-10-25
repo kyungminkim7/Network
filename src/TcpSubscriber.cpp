@@ -38,13 +38,9 @@ TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
 
-    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     pSubscriber->socket.async_connect(pSubscriber->endpoint, [pSubscriber, subscriber=std::move(subscriber)](const auto &error) mutable {
         if (error) {
-            {
-                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                subscriber->socket.close();
-            }
+            subscriber->socket.close();
 
             subscriber->socketReconnectTimer = std::make_unique<asio::steady_timer>(subscriber->subscriberContext,
                                                                                     SOCKET_RECONNECT_WAIT_DURATION);
@@ -65,18 +61,13 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
     auto pSubscriber = subscriber.get();
     auto pMsgHeader = reinterpret_cast<uint8_t*>(msgHeader.get());
 
-    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     asio::async_read(pSubscriber->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesReceived,
                                                         sizeof(std_msgs::Header) - totalMsgHeaderBytesReceived),
                      [subscriber=std::move(subscriber), msgHeader=std::move(msgHeader),
                      totalMsgHeaderBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
-            {
-                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                subscriber->socket.close();
-            }
-
+            subscriber->socket.close();
             connect(std::move(subscriber));
             return;
         }
@@ -100,18 +91,13 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
     auto pSubscriber = subscriber.get();
     auto pMsg = msg.get();
 
-    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     asio::async_read(pSubscriber->socket, asio::buffer(pMsg + totalMsgBytesReceived,
                                                        msgSize_bytes - totalMsgBytesReceived),
                      [subscriber=std::move(subscriber), msg=std::move(msg),
                      msgSize_bytes, totalMsgBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
-            {
-                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                subscriber->socket.close();
-            }
-
+            subscriber->socket.close();
             connect(std::move(subscriber));
             return;
         }
@@ -169,18 +155,13 @@ void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
     auto pSubscriber = subscriber.get();
     auto pMsgCtrl = reinterpret_cast<const uint8_t*>(msgCtrl.get());
 
-    std::lock_guard<std::mutex> guard(subscriber->socketMutex);
     asio::async_write(pSubscriber->socket, asio::buffer(pMsgCtrl + totalMsgCtrlBytesTransferred,
                                                         sizeof(std_msgs::MessageControl) - totalMsgCtrlBytesTransferred),
                       [subscriber=std::move(subscriber), msgCtrl=std::move(msgCtrl),
                       totalMsgCtrlBytesTransferred](const auto &error, auto bytesTransferred) mutable {
         // Close down socket and try reconnecting upon fatal error
         if (error) {
-            {
-                std::lock_guard<std::mutex> guard(subscriber->socketMutex);
-                subscriber->socket.close();
-            }
-
+            subscriber->socket.close();
             connect(std::move(subscriber));
             return;
         }

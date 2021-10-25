@@ -43,7 +43,6 @@ private:
     static void processMsg(std::shared_ptr<TcpSubscriber> subscriber,
                            std::unique_ptr<uint8_t[]> msg);
     static void postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber);
-    static void postImgMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber);
 
     static void sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
                                std::unique_ptr<std_msgs::MessageControl> msgCtrl,
@@ -54,7 +53,6 @@ private:
     asio::io_context &subscriberContext;
 
     asio::ip::tcp::socket socket;
-    std::mutex socketMutex;
 
     asio::ip::tcp::endpoint endpoint;
 
