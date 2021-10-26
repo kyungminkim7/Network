@@ -109,7 +109,13 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
             return;
         }
 
-        processMsg(subscriber, std::move(msg));
+        // Enqueue msg for handling (only process latest msg)
+        if (!subscriber->receivedMsg) {
+            asio::post(subscriber->mainContext, [subscriber]() mutable {
+                postMsgHandlingTask(std::move(subscriber));
+            });
+        }
+        subscriber->receivedMsg = std::move(msg);
 
         // Acknowledge msg reception
         sendMsgControl(std::move(subscriber),
@@ -118,34 +124,13 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
     });
 }
 
-void TcpSubscriber::processMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                               std::unique_ptr<uint8_t[]> msgBuffer) {
-    // Enqueue msg for handling
-    std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
-
-    subscriber->msgQueue.push(std::move(msgBuffer));
-
-    if (subscriber->msgQueue.size() > MSG_QUEUE_SIZE) {
-        subscriber->msgQueue.pop();
-    } else {
-        postMsgHandlingTask(std::move(subscriber));
-    }
-}
-
 void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
-
-    asio::post(pSubscriber->mainContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
-        std::unique_ptr<uint8_t[]> msg;
-
-        // Grab next msg for handling
-        {
-            std::lock_guard<std::mutex> guard(subscriber->msgQueueMutex);
-            msg = std::move(subscriber->msgQueue.front());
-            subscriber->msgQueue.pop();
-        }
-
-        pSubscriber->msgReceivedHandler(std::move(msg));
+    asio::post(pSubscriber->subscriberContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
+        asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber),
+                   msg=std::move(pSubscriber->receivedMsg)]() mutable {
+            subscriber->msgReceivedHandler(std::move(msg));
+        });
     });
 }
 
