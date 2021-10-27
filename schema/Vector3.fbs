@@ -1,4 +1,4 @@
-namespace geometry_msgs;
+namespace msgs;
 
 table Vector3 {
     x:float32;

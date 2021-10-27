@@ -5,8 +5,8 @@
 
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
-#include <std_msgs/Header_generated.h>
-#include <std_msgs/MessageControl_generated.h>
+#include <network/msgs/Header_generated.h>
+#include <network/msgs/MessageControl_generated.h>
 
 namespace ntwk {
 
@@ -28,7 +28,7 @@ private:
     void removeSocket(Socket *socket);
 
     static void sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket *socket,
-                              std::shared_ptr<const std_msgs::Header> msgHeader,
+                              std::shared_ptr<const msgs::Header> msgHeader,
                               std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
                               unsigned int totalMsgHeaderBytesTransferred);
 
@@ -37,7 +37,7 @@ private:
                         unsigned int totalMsgBytesTransferred);
 
     static void receiveMsgControl(std::shared_ptr<TcpPublisher> publisher, Socket *socket,
-                                  std::unique_ptr<std_msgs::MessageControl> msgCtrl,
+                                  std::unique_ptr<msgs::MessageControl> msgCtrl,
                                   unsigned int totalMsgCtrlBytesReceived);
 
 private:

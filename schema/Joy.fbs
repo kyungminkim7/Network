@@ -1,4 +1,4 @@
-namespace sensor_msgs;
+namespace msgs;
 
 table Joy {
     x:float32;

@@ -1,4 +1,4 @@
-namespace std_msgs;
+namespace msgs;
 
 table Uint8Array {
     data:[uint8];

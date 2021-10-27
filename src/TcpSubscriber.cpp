@@ -49,19 +49,19 @@ void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
 
         } else {
             // Start receiving messages
-            receiveMsgHeader(std::move(subscriber), std::make_unique<std_msgs::Header>(), 0u);
+            receiveMsgHeader(std::move(subscriber), std::make_unique<msgs::Header>(), 0u);
         }
     });
 }
 
 void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
-                                     std::unique_ptr<std_msgs::Header> msgHeader,
+                                     std::unique_ptr<msgs::Header> msgHeader,
                                      unsigned int totalMsgHeaderBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsgHeader = reinterpret_cast<uint8_t*>(msgHeader.get());
 
     asio::async_read(pSubscriber->socket, asio::buffer(pMsgHeader + totalMsgHeaderBytesReceived,
-                                                        sizeof(std_msgs::Header) - totalMsgHeaderBytesReceived),
+                                                        sizeof(msgs::Header) - totalMsgHeaderBytesReceived),
                      [subscriber=std::move(subscriber), msgHeader=std::move(msgHeader),
                      totalMsgHeaderBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
@@ -73,15 +73,15 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
 
         // Receive the rest of the header if it was only partially received
         totalMsgHeaderBytesReceived += bytesReceived;
-        if (totalMsgHeaderBytesReceived < sizeof(std_msgs::Header)) {
+        if (totalMsgHeaderBytesReceived < sizeof(msgs::Header)) {
             receiveMsgHeader(std::move(subscriber), std::move(msgHeader), totalMsgHeaderBytesReceived);
             return;
         }
 
         // Start receiving the msg
         receiveMsg(std::move(subscriber),
-                   msgHeader->msgTypeId(), std::make_unique<uint8_t[]>(msgHeader->msgSize()),
-                   msgHeader->msgSize(), 0u);
+                   msgHeader->msg_type_id(), std::make_unique<uint8_t[]>(msgHeader->msg_size()),
+                   msgHeader->msg_size(), 0u);
     });
 }
 
@@ -121,7 +121,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
 
         // Acknowledge msg reception
         sendMsgControl(std::move(subscriber),
-                       std::make_unique<std_msgs::MessageControl>(std_msgs::MessageControl::ACK),
+                       std::make_unique<msgs::MessageControl>(msgs::MessageControl::ACK),
                        0u);
     });
 }
@@ -143,13 +143,13 @@ void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscribe
 }
 
 void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
-                                   std::unique_ptr<std_msgs::MessageControl> msgCtrl,
+                                   std::unique_ptr<msgs::MessageControl> msgCtrl,
                                    unsigned int totalMsgCtrlBytesTransferred) {
     auto pSubscriber = subscriber.get();
     auto pMsgCtrl = reinterpret_cast<const uint8_t*>(msgCtrl.get());
 
     asio::async_write(pSubscriber->socket, asio::buffer(pMsgCtrl + totalMsgCtrlBytesTransferred,
-                                                        sizeof(std_msgs::MessageControl) - totalMsgCtrlBytesTransferred),
+                                                        sizeof(msgs::MessageControl) - totalMsgCtrlBytesTransferred),
                       [subscriber=std::move(subscriber), msgCtrl=std::move(msgCtrl),
                       totalMsgCtrlBytesTransferred](const auto &error, auto bytesTransferred) mutable {
         // Close down socket and try reconnecting upon fatal error
@@ -161,13 +161,13 @@ void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
 
         // Send the rest of the msg if it was only partially received
         totalMsgCtrlBytesTransferred += bytesTransferred;
-        if (totalMsgCtrlBytesTransferred < sizeof(std_msgs::MessageControl)) {
+        if (totalMsgCtrlBytesTransferred < sizeof(msgs::MessageControl)) {
             sendMsgControl(std::move(subscriber), std::move(msgCtrl), totalMsgCtrlBytesTransferred);
             return;
         }
 
         // Start listening for new msgs
-        receiveMsgHeader(std::move(subscriber), std::make_unique<std_msgs::Header>(), 0u);
+        receiveMsgHeader(std::move(subscriber), std::make_unique<msgs::Header>(), 0u);
     });
 }
 

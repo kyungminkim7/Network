@@ -1,6 +1,6 @@
 include "Vector3.fbs";
 
-namespace geometry_msgs;
+namespace msgs;
 
 table Twist {
     linear:Vector3;
