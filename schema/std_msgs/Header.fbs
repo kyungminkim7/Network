@@ -1,5 +1,6 @@
 namespace std_msgs;
 
 struct Header {
+    msgTypeId:uint32;
     msgSize:uint32;
 }

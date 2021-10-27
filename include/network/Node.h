@@ -20,15 +20,16 @@ public:
     using Endpoint = std::pair<std::string, unsigned short>;
     using PublisherPtr = std::shared_ptr<TcpPublisher>;
     using SubscriberPtr = std::shared_ptr<TcpSubscriber>;
+    using MsgTypeId = int;
 
     Node();
     ~Node();
 
     void advertise(unsigned short port);
-    void subscribe(const std::string &host, unsigned short port,
+    void subscribe(const Endpoint &endpoint, MsgTypeId msgTypeId,
                    std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler);
 
-    void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
+    void publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
     void run();
     void runOnce();

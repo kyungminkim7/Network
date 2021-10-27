@@ -12,10 +12,12 @@ namespace ntwk {
 
 class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
 public:
+    using MsgTypeId = int;
+
     static std::shared_ptr<TcpPublisher> create(asio::io_context &publisherContext,
                                                 unsigned short port);
 
-    void publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg);
+    void publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
 private:
     struct Socket;

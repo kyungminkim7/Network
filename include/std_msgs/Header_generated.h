@@ -12,20 +12,26 @@ struct Header;
 
 FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Header FLATBUFFERS_FINAL_CLASS {
  private:
+  uint32_t msgTypeId_;
   uint32_t msgSize_;
 
  public:
-  Header() {
-    memset(static_cast<void *>(this), 0, sizeof(Header));
+  Header()
+      : msgTypeId_(0),
+        msgSize_(0) {
   }
-  Header(uint32_t _msgSize)
-      : msgSize_(flatbuffers::EndianScalar(_msgSize)) {
+  Header(uint32_t _msgTypeId, uint32_t _msgSize)
+      : msgTypeId_(flatbuffers::EndianScalar(_msgTypeId)),
+        msgSize_(flatbuffers::EndianScalar(_msgSize)) {
+  }
+  uint32_t msgTypeId() const {
+    return flatbuffers::EndianScalar(msgTypeId_);
   }
   uint32_t msgSize() const {
     return flatbuffers::EndianScalar(msgSize_);
   }
 };
-FLATBUFFERS_STRUCT_END(Header, 4);
+FLATBUFFERS_STRUCT_END(Header, 8);
 
 }  // namespace std_msgs
 

@@ -18,22 +18,21 @@ using namespace asio::ip;
 std::shared_ptr<TcpSubscriber> TcpSubscriber::create(asio::io_context &mainContext,
                                                      asio::io_context &subscriberContext,
                                                      const std::string &host,
-                                                     unsigned short port,
-                                                     MsgReceivedHandler msgReceivedHandler) {
+                                                     unsigned short port) {
     std::shared_ptr<TcpSubscriber> subscriber(new TcpSubscriber(mainContext, subscriberContext,
-                                                                host, port, std::move(msgReceivedHandler)));
+                                                                host, port));
     connect(subscriber);
     return subscriber;
 }
 
-TcpSubscriber::TcpSubscriber(asio::io_context &mainContext,
-                             asio::io_context &subscriberContext,
-                             const std::string &host,
-                             unsigned short port,
-                             MsgReceivedHandler msgReceivedHandler) :
+TcpSubscriber::TcpSubscriber(asio::io_context &mainContext, asio::io_context &subscriberContext,
+                             const std::string &host, unsigned short port) :
     mainContext(mainContext), subscriberContext(subscriberContext),
-    socket(subscriberContext), endpoint(make_address(host), port),
-    msgReceivedHandler(std::move(msgReceivedHandler)) {}
+    socket(subscriberContext), endpoint(make_address(host), port) {}
+
+void TcpSubscriber::subscribe(MsgTypeId msgTypeId, MsgHandler msgHandler) {
+    this->msgHandlers[msgTypeId] = std::move(msgHandler);
+}
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     auto pSubscriber = subscriber.get();
@@ -80,20 +79,21 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
         }
 
         // Start receiving the msg
-        receiveMsg(std::move(subscriber), std::make_unique<uint8_t[]>(msgHeader->msgSize()),
+        receiveMsg(std::move(subscriber),
+                   msgHeader->msgTypeId(), std::make_unique<uint8_t[]>(msgHeader->msgSize()),
                    msgHeader->msgSize(), 0u);
     });
 }
 
 void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                               MsgPtr msg, unsigned int msgSize_bytes,
+                               MsgTypeId msgTypeId, MsgPtr msg, unsigned int msgSize_bytes,
                                unsigned int totalMsgBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsg = msg.get();
 
     asio::async_read(pSubscriber->socket, asio::buffer(pMsg + totalMsgBytesReceived,
                                                        msgSize_bytes - totalMsgBytesReceived),
-                     [subscriber=std::move(subscriber), msg=std::move(msg),
+                     [subscriber=std::move(subscriber), msgTypeId, msg=std::move(msg),
                      msgSize_bytes, totalMsgBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Try reconnecting upon fatal error
         if (error) {
@@ -105,17 +105,19 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
         // Receive the rest of the msg if it was only partially received
         totalMsgBytesReceived += bytesReceived;
         if (totalMsgBytesReceived < msgSize_bytes) {
-            receiveMsg(std::move(subscriber), std::move(msg), msgSize_bytes, totalMsgBytesReceived);
+            receiveMsg(std::move(subscriber),
+                       msgTypeId, std::move(msg),
+                       msgSize_bytes, totalMsgBytesReceived);
             return;
         }
 
         // Enqueue msg for handling (only process latest msg)
-        if (!subscriber->receivedMsg) {
-            asio::post(subscriber->mainContext, [subscriber]() mutable {
-                postMsgHandlingTask(std::move(subscriber));
+        if (!subscriber->msgBuffers[msgTypeId]) {
+            asio::post(subscriber->mainContext, [subscriber, msgTypeId]() mutable {
+                postMsgHandlingTask(std::move(subscriber), msgTypeId);
             });
         }
-        subscriber->receivedMsg = std::move(msg);
+        subscriber->msgBuffers[msgTypeId] = std::move(msg);
 
         // Acknowledge msg reception
         sendMsgControl(std::move(subscriber),
@@ -124,12 +126,18 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
     });
 }
 
-void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber) {
+void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber,
+                                        MsgTypeId msgTypeId) {
     auto pSubscriber = subscriber.get();
-    asio::post(pSubscriber->subscriberContext, [pSubscriber, subscriber=std::move(subscriber)]() mutable {
-        asio::post(pSubscriber->mainContext, [subscriber=std::move(subscriber),
-                   msg=std::move(pSubscriber->receivedMsg)]() mutable {
-            subscriber->msgReceivedHandler(std::move(msg));
+    asio::post(pSubscriber->subscriberContext,
+               [pSubscriber, subscriber=std::move(subscriber), msgTypeId]() mutable {
+        asio::post(pSubscriber->mainContext,
+                   [subscriber=std::move(subscriber), msgTypeId,
+                   msg=std::move(pSubscriber->msgBuffers[msgTypeId])]() mutable {
+            auto handler = subscriber->msgHandlers.find(msgTypeId);
+            if (handler != subscriber->msgHandlers.end()) {
+                handler->second(std::move(msg));
+            }
         });
     });
 }

@@ -47,9 +47,10 @@ void TcpPublisher::removeSocket(Socket *socket) {
     });
 }
 
-void TcpPublisher::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
-    asio::post(this->publisherContext, [publisher=this->shared_from_this(), msg=std::move(msg)]() mutable {
-        auto msgHeader = std::make_shared<std_msgs::Header>(msg->size());
+void TcpPublisher::publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+    asio::post(this->publisherContext, [publisher=this->shared_from_this(),
+               msgTypeId, msg=std::move(msg)]() mutable {
+        auto msgHeader = std::make_shared<std_msgs::Header>(msgTypeId, msg->size());
 
         for (auto &s : publisher->connectedSockets) {
             if (s.readyToWrite) {
