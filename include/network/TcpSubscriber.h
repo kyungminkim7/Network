@@ -11,8 +11,6 @@
 
 namespace ntwk {
 
-struct Image;
-
 class TcpSubscriber {
 public:
     using MsgReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
