@@ -18,14 +18,24 @@ Node::~Node() {
     this->tasksThread.join();
 }
 
-std::shared_ptr<TcpPublisher> Node::advertise(unsigned short port) {
-    return TcpPublisher::create(this->tasksContext, port);
+void Node::advertise(unsigned short port) {
+    this->publisher = TcpPublisher::create(this->tasksContext, port);
 }
 
-std::shared_ptr<TcpSubscriber> Node::subscribe(const std::string &host, unsigned short port,
-                                               std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler) {
-    return TcpSubscriber::create(this->mainContext, this->tasksContext,
-                                 host, port, std::move(msgReceivedHandler));
+void Node::subscribe(const std::string &host, unsigned short port,
+                     std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler) {
+    auto endpoint = std::make_pair(host, port);
+    auto &s = this->subscribers[endpoint];
+    if (!s) {
+        s = TcpSubscriber::create(this->mainContext, this->tasksContext,
+                                  host, port, std::move(msgReceivedHandler));
+    } else {
+        // TODO subscribe
+    }
+}
+
+void Node::publish(std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
+    this->publisher->publish(std::move(msg));
 }
 
 void Node::run() {
