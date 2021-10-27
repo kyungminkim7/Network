@@ -16,6 +16,7 @@ struct Image;
 class TcpSubscriber {
 public:
     using MsgReceivedHandler = std::function<void(std::unique_ptr<uint8_t[]>)>;
+    using MsgPtr = std::unique_ptr<uint8_t[]>;
 
     static std::shared_ptr<TcpSubscriber> create(asio::io_context &mainContext,
                                                  asio::io_context &subscriberContext,
@@ -35,8 +36,8 @@ private:
                                  unsigned int totalMsgHeaderBytesReceived);
 
     static void receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                           std::unique_ptr<uint8_t[]> msg,
-                           unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived);
+                           MsgPtr msg, unsigned int msgSize_bytes,
+                           unsigned int totalMsgBytesReceived);
 
     static void postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber);
 
@@ -53,7 +54,7 @@ private:
     asio::ip::tcp::endpoint endpoint;
 
     MsgReceivedHandler msgReceivedHandler;
-    std::unique_ptr<uint8_t[]> receivedMsg;
+    MsgPtr receivedMsg;
 };
 
 } // namespace ntwk

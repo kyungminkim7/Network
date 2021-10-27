@@ -86,7 +86,7 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
 }
 
 void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                               std::unique_ptr<uint8_t[]> msg, unsigned int msgSize_bytes,
+                               MsgPtr msg, unsigned int msgSize_bytes,
                                unsigned int totalMsgBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsg = msg.get();
