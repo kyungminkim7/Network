@@ -22,14 +22,14 @@ void Node::advertise(unsigned short port) {
     this->publisher = TcpPublisher::create(this->tasksContext, port);
 }
 
-void Node::subscribe(const Endpoint &endpoint, int msgType,
-                     std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler) {
+void Node::subscribe(const Endpoint &endpoint, MsgTypeId msgType,
+                     std::function<void(std::unique_ptr<uint8_t[]>)> msgHandler) {
     auto &s = this->subscribers[endpoint];
     if (!s) {
         s = TcpSubscriber::create(this->mainContext, this->tasksContext,
                                   endpoint.first, endpoint.second);
     }
-    s->subscribe(msgType, std::move(msgReceivedHandler));
+    s->subscribe(msgType, std::move(msgHandler));
 }
 
 void Node::publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg) {

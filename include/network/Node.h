@@ -10,6 +10,8 @@
 #include <asio/io_context.hpp>
 #include <flatbuffers/flatbuffers.h>
 
+#include "MsgTypeId.h"
+
 namespace ntwk {
 
 class TcpPublisher;
@@ -20,14 +22,13 @@ public:
     using Endpoint = std::pair<std::string, unsigned short>;
     using PublisherPtr = std::shared_ptr<TcpPublisher>;
     using SubscriberPtr = std::shared_ptr<TcpSubscriber>;
-    using MsgTypeId = int;
 
     Node();
     ~Node();
 
     void advertise(unsigned short port);
     void subscribe(const Endpoint &endpoint, MsgTypeId msgTypeId,
-                   std::function<void(std::unique_ptr<uint8_t[]>)> msgReceivedHandler);
+                   std::function<void(std::unique_ptr<uint8_t[]>)> msgHandler);
 
     void publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 

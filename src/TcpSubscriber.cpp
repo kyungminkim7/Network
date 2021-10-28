@@ -5,6 +5,8 @@
 #include <asio/read.hpp>
 #include <asio/write.hpp>
 
+#include <network/Utils.h>
+
 namespace {
 
 constexpr auto SOCKET_RECONNECT_WAIT_DURATION = std::chrono::milliseconds(30);
@@ -31,7 +33,7 @@ TcpSubscriber::TcpSubscriber(asio::io_context &mainContext, asio::io_context &su
     socket(subscriberContext), endpoint(make_address(host), port) {}
 
 void TcpSubscriber::subscribe(MsgTypeId msgTypeId, MsgHandler msgHandler) {
-    this->msgHandlers[msgTypeId] = std::move(msgHandler);
+    this->msgHandlers[toUnderlyingType(msgTypeId)] = std::move(msgHandler);
 }
 
 void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
@@ -86,8 +88,8 @@ void TcpSubscriber::receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
 }
 
 void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                               MsgTypeId msgTypeId, MsgPtr msg, unsigned int msgSize_bytes,
-                               unsigned int totalMsgBytesReceived) {
+                               MsgTypeIdUnderlyingType msgTypeId, MsgPtr msg,
+                               unsigned int msgSize_bytes, unsigned int totalMsgBytesReceived) {
     auto pSubscriber = subscriber.get();
     auto pMsg = msg.get();
 
@@ -127,7 +129,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
 }
 
 void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber,
-                                        MsgTypeId msgTypeId) {
+                                        MsgTypeIdUnderlyingType msgTypeId) {
     auto pSubscriber = subscriber.get();
     asio::post(pSubscriber->subscriberContext,
                [pSubscriber, subscriber=std::move(subscriber), msgTypeId]() mutable {

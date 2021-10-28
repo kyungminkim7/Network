@@ -3,6 +3,8 @@
 #include <asio/read.hpp>
 #include <asio/write.hpp>
 
+#include <network/Utils.h>
+
 namespace ntwk {
 
 using namespace asio::ip;
@@ -50,7 +52,8 @@ void TcpPublisher::removeSocket(Socket *socket) {
 void TcpPublisher::publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
     asio::post(this->publisherContext, [publisher=this->shared_from_this(),
                msgTypeId, msg=std::move(msg)]() mutable {
-        auto msgHeader = std::make_shared<msgs::Header>(msgTypeId, msg->size());
+        auto msgHeader = std::make_shared<msgs::Header>(toUnderlyingType(msgTypeId),
+                                                        msg->size());
 
         for (auto &s : publisher->connectedSockets) {
             if (s.readyToWrite) {

@@ -5,15 +5,15 @@
 
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
-#include <network/msgs/Header_generated.h>
-#include <network/msgs/MsgCtrl_generated.h>
+
+#include "MsgTypeId.h"
+#include "msgs/Header_generated.h"
+#include "msgs/MsgCtrl_generated.h"
 
 namespace ntwk {
 
 class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
 public:
-    using MsgTypeId = int;
-
     static std::shared_ptr<TcpPublisher> create(asio::io_context &publisherContext,
                                                 unsigned short port);
 
