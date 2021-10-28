@@ -5,10 +5,9 @@
 
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
+#include <flatbuffers/flatbuffers.h>
 
 #include "MsgTypeId.h"
-#include "msgs/Header_generated.h"
-#include "msgs/MsgCtrl_generated.h"
 
 namespace ntwk {
 
@@ -20,31 +19,16 @@ public:
     void publish(MsgTypeId msgTypeId, std::shared_ptr<flatbuffers::DetachedBuffer> msg);
 
 private:
-    struct Socket;
-
     TcpPublisher(asio::io_context &publisherContext, unsigned short port);
 
     void listenForConnections();
-    void removeSocket(Socket *socket);
-
-    static void sendMsgHeader(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket *socket,
-                              std::shared_ptr<const msgs::Header> msgHeader,
-                              std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
-                              unsigned int totalMsgHeaderBytesTransferred);
-
-    static void sendMsg(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket *socket,
-                        std::shared_ptr<const flatbuffers::DetachedBuffer> msg,
-                        unsigned int totalMsgBytesTransferred);
-
-    static void receiveMsgControl(std::shared_ptr<TcpPublisher> publisher, Socket *socket,
-                                  std::unique_ptr<msgs::MsgCtrl> msgCtrl,
-                                  unsigned int totalMsgCtrlBytesReceived);
 
 private:
     asio::io_context &publisherContext;
     asio::ip::tcp::acceptor socketAcceptor;
 
-    std::list<Socket> connectedSockets;
+    using SocketPtr = std::unique_ptr<asio::ip::tcp::socket>;
+    std::list<SocketPtr> connectedSockets;
 };
 
 } // namespace ntwk
