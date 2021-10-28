@@ -121,7 +121,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
 
         // Acknowledge msg reception
         sendMsgControl(std::move(subscriber),
-                       std::make_unique<msgs::MessageControl>(msgs::MessageControl::ACK),
+                       std::make_unique<msgs::MsgCtrl>(msgs::MsgCtrl::ACK),
                        0u);
     });
 }
@@ -143,13 +143,13 @@ void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscribe
 }
 
 void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
-                                   std::unique_ptr<msgs::MessageControl> msgCtrl,
+                                   std::unique_ptr<msgs::MsgCtrl> msgCtrl,
                                    unsigned int totalMsgCtrlBytesTransferred) {
     auto pSubscriber = subscriber.get();
     auto pMsgCtrl = reinterpret_cast<const uint8_t*>(msgCtrl.get());
 
     asio::async_write(pSubscriber->socket, asio::buffer(pMsgCtrl + totalMsgCtrlBytesTransferred,
-                                                        sizeof(msgs::MessageControl) - totalMsgCtrlBytesTransferred),
+                                                        sizeof(msgs::MsgCtrl) - totalMsgCtrlBytesTransferred),
                       [subscriber=std::move(subscriber), msgCtrl=std::move(msgCtrl),
                       totalMsgCtrlBytesTransferred](const auto &error, auto bytesTransferred) mutable {
         // Close down socket and try reconnecting upon fatal error
@@ -161,7 +161,7 @@ void TcpSubscriber::sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
 
         // Send the rest of the msg if it was only partially received
         totalMsgCtrlBytesTransferred += bytesTransferred;
-        if (totalMsgCtrlBytesTransferred < sizeof(msgs::MessageControl)) {
+        if (totalMsgCtrlBytesTransferred < sizeof(msgs::MsgCtrl)) {
             sendMsgControl(std::move(subscriber), std::move(msgCtrl), totalMsgCtrlBytesTransferred);
             return;
         }

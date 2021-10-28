@@ -1,8 +1,8 @@
 namespace msgs;
 
-table Joy {
+table Joystick {
     x:float32;
     y:float32;
 }
 
-root_type Joy;
+root_type Joystick;

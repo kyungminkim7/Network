@@ -8,7 +8,7 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/steady_timer.hpp>
 #include <network/msgs/Header_generated.h>
-#include <network/msgs/MessageControl_generated.h>
+#include <network/msgs/MsgCtrl_generated.h>
 
 namespace ntwk {
 
@@ -46,7 +46,7 @@ private:
                                     MsgTypeId msgTypeId);
 
     static void sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
-                               std::unique_ptr<msgs::MessageControl> msgCtrl,
+                               std::unique_ptr<msgs::MsgCtrl> msgCtrl,
                                unsigned int totalMsgCtrlBytesTransferred);
 
 private:

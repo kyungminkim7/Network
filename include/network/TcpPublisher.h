@@ -6,7 +6,7 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
 #include <network/msgs/Header_generated.h>
-#include <network/msgs/MessageControl_generated.h>
+#include <network/msgs/MsgCtrl_generated.h>
 
 namespace ntwk {
 
@@ -37,7 +37,7 @@ private:
                         unsigned int totalMsgBytesTransferred);
 
     static void receiveMsgControl(std::shared_ptr<TcpPublisher> publisher, Socket *socket,
-                                  std::unique_ptr<msgs::MessageControl> msgCtrl,
+                                  std::unique_ptr<msgs::MsgCtrl> msgCtrl,
                                   unsigned int totalMsgCtrlBytesReceived);
 
 private:

@@ -113,16 +113,16 @@ void TcpPublisher::sendMsg(std::shared_ptr<ntwk::TcpPublisher> publisher, Socket
 
         // Wait for ack signal from subscriber
         receiveMsgControl(std::move(publisher), socket,
-                          std::make_unique<msgs::MessageControl>(), 0u);
+                          std::make_unique<msgs::MsgCtrl>(), 0u);
     });
 }
 
 void TcpPublisher::receiveMsgControl(std::shared_ptr<TcpPublisher> publisher, Socket *socket,
-                                     std::unique_ptr<msgs::MessageControl> msgCtrl,
+                                     std::unique_ptr<msgs::MsgCtrl> msgCtrl,
                                      unsigned int totalMsgCtrlBytesReceived) {
     auto pMsgCtrl = reinterpret_cast<uint8_t*>(msgCtrl.get());
     asio::async_read(*socket->socket, asio::buffer(pMsgCtrl + totalMsgCtrlBytesReceived,
-                                                   sizeof(msgs::MessageControl) - totalMsgCtrlBytesReceived),
+                                                   sizeof(msgs::MsgCtrl) - totalMsgCtrlBytesReceived),
                      [publisher=std::move(publisher), socket, msgCtrl=std::move(msgCtrl),
                      totalMsgCtrlBytesReceived](const auto &error, auto bytesReceived) mutable {
         // Tear down socket if fatal error
@@ -133,13 +133,13 @@ void TcpPublisher::receiveMsgControl(std::shared_ptr<TcpPublisher> publisher, So
 
         // Receive the rest of the msg ctrl if it was only partially received
         totalMsgCtrlBytesReceived += bytesReceived;
-        if (totalMsgCtrlBytesReceived < sizeof(msgs::MessageControl)) {
+        if (totalMsgCtrlBytesReceived < sizeof(msgs::MsgCtrl)) {
             receiveMsgControl(std::move(publisher), socket,
                               std::move(msgCtrl), totalMsgCtrlBytesReceived);
             return;
         }
 
-        if (*msgCtrl != msgs::MessageControl::ACK) {
+        if (*msgCtrl != msgs::MsgCtrl::ACK) {
             // Reset the connection if a successful Ack signal is not received
             publisher->removeSocket(socket);
         } else {
