@@ -10,8 +10,6 @@
 #include <asio/steady_timer.hpp>
 
 #include "MsgTypeId.h"
-#include "msgs/Header_generated.h"
-#include "msgs/MsgCtrl_generated.h"
 
 namespace ntwk {
 
@@ -38,21 +36,10 @@ private:
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
-    static void receiveMsgHeader(std::shared_ptr<TcpSubscriber> subscriber,
-                                 std::unique_ptr<msgs::Header> msgHeader,
-                                 unsigned int totalMsgHeaderBytesReceived);
-
-    static void receiveMsg(std::shared_ptr<TcpSubscriber> subscriber,
-                           MsgTypeIdUnderlyingType msgTypeId, MsgPtr msg,
-                           unsigned int msgSize_bytes,
-                           unsigned int totalMsgBytesReceived);
+    static void receiveMsg(std::shared_ptr<TcpSubscriber> subscriber);
 
     static void postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber,
                                     MsgTypeIdUnderlyingType msgTypeId);
-
-    static void sendMsgControl(std::shared_ptr<TcpSubscriber> subscriber,
-                               std::unique_ptr<msgs::MsgCtrl> msgCtrl,
-                               unsigned int totalMsgCtrlBytesTransferred);
 
 private:
     asio::io_context &mainContext;
