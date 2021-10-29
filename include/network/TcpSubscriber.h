@@ -36,9 +36,9 @@ private:
 
     static void connect(std::shared_ptr<TcpSubscriber> subscriber);
 
-    static void receiveMsg(std::shared_ptr<TcpSubscriber> subscriber);
+    static void receiveMsg(std::shared_ptr<TcpSubscriber> &&subscriber);
 
-    static void postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber,
+    static void postMsgHandlingTask(std::shared_ptr<TcpSubscriber> &&subscriber,
                                     MsgTypeIdUnderlyingType msgTypeId);
 
 private:

@@ -59,7 +59,7 @@ void TcpSubscriber::connect(std::shared_ptr<TcpSubscriber> subscriber) {
     });
 }
 
-void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber) {
+void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> &&subscriber) {
     // Wait for msg header
     auto msgHeader = std::make_unique<msgs::Header>();
     auto pMsgHeader = msgHeader.get();
@@ -105,7 +105,7 @@ void TcpSubscriber::receiveMsg(std::shared_ptr<TcpSubscriber> subscriber) {
     });
 }
 
-void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> subscriber,
+void TcpSubscriber::postMsgHandlingTask(std::shared_ptr<TcpSubscriber> &&subscriber,
                                         MsgTypeIdUnderlyingType msgTypeId) {
     auto pSubscriber = subscriber.get();
     asio::post(pSubscriber->subscriberContext,
