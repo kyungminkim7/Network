@@ -30,8 +30,6 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC
         asio::asio
         flatbuffers
-    PRIVATE
-        turbojpeg-static
 )
 
 target_compile_features(${PROJECT_NAME}
