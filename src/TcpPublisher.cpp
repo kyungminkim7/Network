@@ -50,27 +50,42 @@ void TcpPublisher::publish(MsgTypeId msgTypeId,
                            std::shared_ptr<flatbuffers::DetachedBuffer> msg) {
     asio::post(this->publisherContext,
                [publisher=this->shared_from_this(), msgTypeId, msg=std::move(msg)]() mutable {
-        msgs::Header header(toUnderlyingType(msgTypeId), msg->size());
-        msgs::MsgCtrl msgCtrl;
+        auto header = std::make_shared<msgs::Header>(toUnderlyingType(msgTypeId), msg->size());
 
-        for (auto iter = publisher->connectedSockets.begin();
-             iter != publisher->connectedSockets.end();) {
-            auto &socket = *iter;
+        for (auto &socket : publisher->connectedSockets) {
             if (socket->available) {
-                try {
-                    asio::write(socket->socket, asio::buffer(&header, sizeof(msgs::Header)));
-                    asio::write(socket->socket, asio::buffer(msg->data(), msg->size()));
+                socket->available = false;
 
-                    asio::read(socket->socket, asio::buffer(&msgCtrl, sizeof(msgs::MsgCtrl)));
-                    if (msgCtrl != msgs::MsgCtrl::ACK) {
-                        throw std::system_error(std::make_error_code(std::io_errc::stream));
+                // Send the header, then the msg, and wait for an ACK
+                asio::async_write(socket->socket, asio::buffer(header.get(), sizeof(msgs::Header)),
+                                  [publisher, socket=socket.get(), header, msg](const auto &error, auto bytesSent){
+                    try {
+                        if (error) {
+                            throw std::system_error(std::make_error_code(std::io_errc::stream));
+                        }
+
+                        // Send the rest of the header
+                        if (bytesSent < sizeof(msgs::Header)) {
+                            asio::write(socket->socket, asio::buffer(header.get() + bytesSent,
+                                                              sizeof(msgs::Header) - bytesSent));
+                        }
+
+                        // Send msg
+                        asio::write(socket->socket, asio::buffer(msg->data(), msg->size()));
+
+                        // Wait for ack
+                        msgs::MsgCtrl msgCtrl;
+                        asio::read(socket->socket, asio::buffer(&msgCtrl, sizeof(msgs::MsgCtrl)));
+                        if (msgCtrl != msgs::MsgCtrl::ACK) {
+                            throw std::system_error(std::make_error_code(std::io_errc::stream));
+                        }
+
+                        socket->available = true;
+                    } catch (...) {
+                        publisher->connectedSockets.remove_if([socket](const auto &s){ return s.get() == socket; });
                     }
-                } catch (...) {
-                    iter = publisher->connectedSockets.erase(iter);
-                    continue;
-                }
+                });
             }
-            ++iter;
         }
     });
 }
