@@ -12,6 +12,10 @@
 namespace ntwk {
 
 class TcpPublisher : public std::enable_shared_from_this<TcpPublisher> {
+private:
+    struct Socket;
+    using SocketPtr = std::unique_ptr<Socket>;
+
 public:
     static std::shared_ptr<TcpPublisher> create(asio::io_context &publisherContext,
                                                 unsigned short port);
@@ -27,7 +31,6 @@ private:
     asio::io_context &publisherContext;
     asio::ip::tcp::acceptor socketAcceptor;
 
-    using SocketPtr = std::unique_ptr<asio::ip::tcp::socket>;
     std::list<SocketPtr> connectedSockets;
 };
 

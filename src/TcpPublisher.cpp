@@ -13,6 +13,13 @@ namespace ntwk {
 
 using namespace asio::ip;
 
+struct TcpPublisher::Socket {
+    tcp::socket socket;
+    bool available;
+
+    explicit Socket(asio::io_context &context) : socket(context), available(true) {}
+};
+
 std::shared_ptr<TcpPublisher> TcpPublisher::create(asio::io_context &publisherContext,
                                                    unsigned short port) {
     std::shared_ptr<TcpPublisher> publisher(new TcpPublisher(publisherContext, port));
@@ -25,11 +32,11 @@ TcpPublisher::TcpPublisher(asio::io_context &publisherContext, unsigned short po
     socketAcceptor(publisherContext, tcp::endpoint(tcp::v4(), port)) { }
 
 void TcpPublisher::listenForConnections() {
-    auto socket = std::make_unique<tcp::socket>(this->publisherContext);
+    auto socket = std::make_unique<Socket>(this->publisherContext);
     auto pSocket = socket.get();
 
     // Save connected sockets for later publishing and listen for more connections
-    this->socketAcceptor.async_accept(*pSocket,
+    this->socketAcceptor.async_accept(pSocket->socket,
                                       [publisher=this->shared_from_this(),
                                        socket=std::move(socket)](const auto &error) mutable {
         if (!error) {
@@ -48,18 +55,20 @@ void TcpPublisher::publish(MsgTypeId msgTypeId,
 
         for (auto iter = publisher->connectedSockets.begin();
              iter != publisher->connectedSockets.end();) {
-            try {
-                auto &socket = *iter;
-                asio::write(*socket, asio::buffer(&header, sizeof(msgs::Header)));
-                asio::write(*socket, asio::buffer(msg->data(), msg->size()));
+            auto &socket = *iter;
+            if (socket->available) {
+                try {
+                    asio::write(socket->socket, asio::buffer(&header, sizeof(msgs::Header)));
+                    asio::write(socket->socket, asio::buffer(msg->data(), msg->size()));
 
-                asio::read(*socket, asio::buffer(&msgCtrl, sizeof(msgs::MsgCtrl)));
-                if (msgCtrl != msgs::MsgCtrl::ACK) {
-                    throw std::system_error(std::make_error_code(std::io_errc::stream));
+                    asio::read(socket->socket, asio::buffer(&msgCtrl, sizeof(msgs::MsgCtrl)));
+                    if (msgCtrl != msgs::MsgCtrl::ACK) {
+                        throw std::system_error(std::make_error_code(std::io_errc::stream));
+                    }
+                } catch (...) {
+                    iter = publisher->connectedSockets.erase(iter);
+                    continue;
                 }
-            } catch (...) {
-                iter = publisher->connectedSockets.erase(iter);
-                continue;
             }
             ++iter;
         }
