@@ -9,6 +9,7 @@ add_subdirectory(extern)
 
 # Create targets and set properties
 add_library(${PROJECT_NAME}
+    "src/Image.cpp"
     "src/Node.cpp"
     "src/Rate.cpp"
     "src/TcpPublisher.cpp"
