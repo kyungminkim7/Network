@@ -1,5 +1,6 @@
 #include <network/TcpPublisher.h>
 
+#include <algorithm>
 #include <system_error>
 
 #include <asio/read.hpp>
@@ -82,7 +83,9 @@ void TcpPublisher::publish(MsgTypeId msgTypeId,
 
                         socket->available = true;
                     } catch (...) {
-                        publisher->connectedSockets.remove_if([socket](const auto &s){ return s.get() == socket; });
+                        auto iter = std::find_if(publisher->connectedSockets.cbegin(), publisher->connectedSockets.cend(),
+                                                 [socket](const auto &s){ return s.get() == socket; });
+                        publisher->connectedSockets.erase(iter);
                     }
                 });
             }
