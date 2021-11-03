@@ -4,13 +4,13 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <thread>
 #include <utility>
 
 #include <asio/io_context.hpp>
 #include <flatbuffers/flatbuffers.h>
 
 #include "MsgTypeId.h"
-#include "ThreadGuard.h"
 
 namespace ntwk {
 
@@ -39,10 +39,10 @@ private:
     asio::io_context mainContext;
     asio::io_context tasksContext;
 
-    ThreadGuard tasksThread;
-
     std::map<Endpoint, SubscriberPtr> subscribers;
     PublisherPtr publisher;
+
+    std::thread tasksThread;
 };
 
 } // namespace ntwk
