@@ -5,28 +5,22 @@
 
 namespace ntwk {
 
-Node::Node() : mainContext(), tasksContext(),
-    tasksThread([this]{
-        auto work = asio::make_work_guard(this->tasksContext);
-        this->tasksContext.run();
-    }) { }
+Node::Node() : mainContext(), ntwkContext(std::make_shared<asio::io_context>()),
+    ntwkThread(ntwkContext) { }
 
 Node::~Node() {
-    this->tasksContext.stop();
     this->mainContext.stop();
-
-    this->tasksThread.join();
 }
 
 void Node::advertise(unsigned short port) {
-    this->publisher = TcpPublisher::create(this->tasksContext, port);
+    this->publisher = TcpPublisher::create(*this->ntwkContext, port);
 }
 
 void Node::subscribe(const Endpoint &endpoint, MsgTypeId msgType,
                      std::function<void(std::unique_ptr<uint8_t[]> &&)> msgHandler) {
     auto &s = this->subscribers[endpoint];
     if (!s) {
-        s = TcpSubscriber::create(this->mainContext, this->tasksContext,
+        s = TcpSubscriber::create(this->mainContext, *this->ntwkContext,
                                   endpoint.first, endpoint.second);
     }
     s->subscribe(msgType, std::move(msgHandler));
