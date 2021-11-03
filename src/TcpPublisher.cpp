@@ -68,8 +68,9 @@ void TcpPublisher::publish(MsgTypeId msgTypeId,
             // Schedule msg to be sent if available
             if (!msgBuffer.buffer)  {
                 asio::post(publisher->publisherContext,
-                           [publisher, socket=socket.get(), msgTypeId]() mutable {
-                    TcpPublisher::sendMsg(std::move(publisher), socket, msgTypeId);
+                           [publisher, socket, msgTypeId]() mutable {
+                    TcpPublisher::sendMsg(std::move(publisher), std::move(socket),
+                                          msgTypeId);
                 });
             }
 
@@ -80,9 +81,10 @@ void TcpPublisher::publish(MsgTypeId msgTypeId,
     });
 }
 
-void TcpPublisher::sendMsg(PublisherPtr &&publisher, TcpPublisher::Socket *socket,
+void TcpPublisher::sendMsg(PublisherPtr &&publisher, SocketPtr &&socket,
                            MsgTypeId msgTypeId) {
     auto &msg = socket->msgs[msgTypeId];
+
     try {
         // Send msg header and data
         asio::write(socket->socket, asio::buffer(msg.header.get(), sizeof(msgs::Header)));
@@ -97,8 +99,10 @@ void TcpPublisher::sendMsg(PublisherPtr &&publisher, TcpPublisher::Socket *socke
 
     } catch (...) {
         auto iter = std::find_if(publisher->connectedSockets.cbegin(), publisher->connectedSockets.cend(),
-                                 [socket](const auto &s){ return s.get() == socket; });
-        publisher->connectedSockets.erase(iter);
+                                 [socket=socket.get()](const auto &s){ return s.get() == socket; });
+        if (iter != publisher->connectedSockets.cend()) {
+            publisher->connectedSockets.erase(iter);
+        }
     }
 
     msg.header.reset();
