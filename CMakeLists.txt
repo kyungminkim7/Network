@@ -16,6 +16,7 @@ add_library(${PROJECT_NAME}
     "src/TcpPublisher.cpp"
     "src/TcpSubscriber.cpp"
     "src/Thread.cpp"
+    "src/ThreadGuard.cpp"
 )
 
 add_library(${package_name}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
