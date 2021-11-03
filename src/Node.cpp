@@ -6,16 +6,14 @@
 namespace ntwk {
 
 Node::Node() : mainContext(), tasksContext(),
-    tasksThread([this]{
+    tasksThread(std::thread([this]{
         auto work = asio::make_work_guard(this->tasksContext);
         this->tasksContext.run();
-    }) { }
+    })) { }
 
 Node::~Node() {
     this->tasksContext.stop();
     this->mainContext.stop();
-
-    this->tasksThread.join();
 }
 
 void Node::advertise(unsigned short port) {
